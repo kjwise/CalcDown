@@ -1,17 +1,14 @@
-# CalcDown Standard Library 0.2 (Draft)
+# CalcDown Standard Library 0.3 (Draft)
 
-**This draft is SUPERSEDED.**  
-Current version → [CalcDown 0.3](calcdown-0.3.md) — [stdlib 0.3](stdlib-0.3.md)
+Status: **Draft / experimental**. This document specifies the standard library object available as `std` when evaluating CalcScript 0.3 expressions.
 
-Status: **Draft / experimental**. This document specifies the standard library object available as `std` when evaluating CalcScript 0.2 expressions.
-
-See also: `docs/calcdown-0.2.md` (the file format, execution model, and CalcScript subset).
+See also: `docs/calcdown-0.3.md` (the file format, execution model, and CalcScript subset).
 
 Goals:
 
 - **Deterministic + sandboxable:** no ambient I/O, time, randomness, globals.
 - **Spreadsheet-grade primitives:** sequences, scans (running state), dates, finance.
-- **Vector-first intent:** engines may broadcast scalars/columns, but the API stays pure.
+- **Table-friendly:** helpers for common row/column transforms without loops.
 
 ## 0) Conventions
 
@@ -19,7 +16,7 @@ The key words **MUST**, **MUST NOT**, **SHOULD**, and **MAY** are to be interpre
 
 ## 1) Conformance
 
-A CalcDown 0.2 engine MUST provide a `std` object with the **Core** APIs in §3.
+A CalcDown 0.3 engine MUST provide a `std` object with the **Core** APIs in §3.
 
 Engines MAY provide additional APIs in §4 (Recommended) and beyond, but MUST NOT expose unsafe capabilities (network, storage, timers, dynamic code loading).
 
@@ -69,6 +66,44 @@ Rules:
 - `count` MUST be a non-negative integer.
 - Default `start = 1`, `step = 1`.
 
+#### `std.data.filter(items, predicate)`
+
+Filter an array using a predicate function.
+
+Signature:
+
+```ts
+filter<T>(items: T[], predicate: (item: T, index: number) => unknown): T[]
+```
+
+Rules:
+
+- MUST throw if `items` is not an array.
+- MUST throw if `predicate` is not a function.
+- MUST return a new array containing items for which `predicate(...)` is truthy.
+
+#### `std.data.sortBy(rows, key, direction?)`
+
+Stable sort a “rows array” (table) by a single key.
+
+Signature:
+
+```ts
+sortBy<T extends Record<string, unknown>>(
+  rows: T[],
+  key: string,
+  direction?: "asc" | "desc"
+): T[]
+```
+
+Rules:
+
+- MUST throw if `rows` is not an array.
+- MUST throw if `key` is empty or unsafe (engines MUST defensively block `__proto__`, `prototype`, `constructor`).
+- `direction` MUST default to `"asc"` and MUST reject values other than `"asc"`/`"desc"`.
+- Keys MAY be `number`, `string`, or `Date`. Missing keys (`null`/`undefined`) MUST sort last.
+- Sorting MUST be stable (ties preserve original order) for deterministic diffs.
+
 #### `std.data.scan(items, reducer, seedOrOptions)`
 
 Run a deterministic left-to-right scan (running state). This is the preferred way to express amortization schedules, running totals, cumulative products, etc., without loops.
@@ -108,7 +143,94 @@ Rules:
 
 - MUST throw on empty arrays.
 
-### 3.3 `std.date`
+### 3.3 `std.table`
+
+Table helpers operate on “rows” represented as arrays of objects (`Array<Record<string, unknown>>`).
+
+#### `std.table.col(rows, key)`
+
+Extract a column as an array.
+
+Signature:
+
+```ts
+col<T = unknown>(rows: Record<string, unknown>[], key: string): T[]
+```
+
+Rules:
+
+- MUST throw if `rows` is not an array.
+- MUST throw if `key` is not a non-empty string.
+
+#### `std.table.map(rows, mapper)`
+
+Map rows to a new array (like `Array.prototype.map`).
+
+Signature:
+
+```ts
+map<TIn extends Record<string, unknown>, TOut>(
+  rows: TIn[],
+  mapper: (row: TIn, index: number) => TOut
+): TOut[]
+```
+
+Rules:
+
+- MUST throw if `rows` is not an array.
+- MUST throw if `mapper` is not a function.
+
+#### `std.table.sum(rows, key)`
+
+Sum a numeric column.
+
+Signature:
+
+```ts
+sum(rows: Record<string, unknown>[], key: string): number
+```
+
+Rules:
+
+- MUST throw if any value in the column is not a finite number.
+
+### 3.4 `std.date`
+
+#### `std.date.parse(value)`
+
+Parse an ISO date string (`YYYY-MM-DD`) into a `Date` (UTC midnight).
+
+Signature:
+
+```ts
+parse(value: string): Date
+```
+
+Rules:
+
+- MUST accept ISO `YYYY-MM-DD` only.
+- MUST throw on invalid dates (including out-of-range calendar dates).
+
+#### `std.date.format(date, template)`
+
+Format a `Date` using a tiny, deterministic strftime-like template.
+
+Signature:
+
+```ts
+format(date: Date, template: string): string
+```
+
+Supported tokens (0.3):
+
+- `%Y` — 4-digit year (UTC)
+- `%m` — 2-digit month (UTC)
+- `%d` — 2-digit day (UTC)
+- `%%` — literal `%`
+
+Rules:
+
+- MUST throw on unsupported tokens.
 
 #### `std.date.addMonths(date, months)`
 
@@ -125,7 +247,7 @@ Rules:
 - `months` MUST be an integer.
 - MUST be deterministic and timezone-stable (engines SHOULD use a consistent timezone, e.g. UTC, for date-only values).
 
-### 3.4 `std.finance`
+### 3.5 `std.finance`
 
 #### `std.finance.toMonthlyRate(annualPercent)`
 
@@ -158,7 +280,7 @@ Notes:
 - `type = 0` means payments at end of period; `type = 1` at beginning.
 - Engines SHOULD match Excel sign conventions (cash outflows are negative).
 
-### 3.5 `std.assert`
+### 3.6 `std.assert`
 
 #### `std.assert.that(condition, message?)`
 
@@ -180,20 +302,25 @@ These APIs are not required for minimal engines, but are strongly recommended fo
 - `minOf(xs)` / `maxOf(xs)`
 - `round(x, digits=0)`
 
-### 4.2 `std.date`
+### 4.2 `std.table`
+
+- `filter(rows, predicate)`
+- `groupSum(rows, byKey, valueKey)`
+- joins (`leftJoin`, `innerJoin`) for relational spreadsheet behavior
+
+### 4.3 `std.date`
 
 - `addDays(date, days)`
 - `addYears(date, years)`
 - `startOfMonth(date)` / `endOfMonth(date)`
 - `range(start, count, interval)` where `interval ∈ {"day","week","month","quarter","year"}`
 
-### 4.3 `std.lookup`
+### 4.4 `std.lookup`
 
 - `xlookup(key, keys, values, { mode="exact", notFound=null }={})`
 - `interpolate(x, xs, ys, { clamp=true }={})`
-- joins (`leftJoin`, `innerJoin`) for relational spreadsheet behavior
 
-### 4.4 `std.finance`
+### 4.5 `std.finance`
 
 - `ipmt`, `ppmt`
 - `npv`, `irr`

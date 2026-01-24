@@ -16,7 +16,7 @@ help: ## Show available make targets
 	@echo "  make install"
 	@echo "  make build"
 	@echo "  make demo"
+	@echo "  make dump"
 	@echo ""
 	@echo "Environment:"
 	@echo "  PORT   Dev server port (default: 5173)"
-

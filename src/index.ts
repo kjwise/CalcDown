@@ -1,10 +1,12 @@
 import { compileCalcScript, type CalcNode } from "./calcscript/compile.js";
 import { evaluateNodes } from "./calcscript/eval.js";
+import { parseDataBlock } from "./data.js";
 import { parseInputsBlock } from "./inputs.js";
 import { parseCalcdownMarkdown } from "./markdown.js";
 import { std } from "./stdlib/std.js";
 import {
   CalcdownMessage,
+  DataTable,
   FrontMatter,
   FencedCodeBlock,
   InputDefinition,
@@ -16,6 +18,7 @@ export interface CalcdownProgram {
   frontMatter: FrontMatter | null;
   blocks: FencedCodeBlock[];
   inputs: InputDefinition[];
+  tables: DataTable[];
   nodes: CalcNode[];
 }
 
@@ -24,9 +27,11 @@ export function parseProgram(markdown: string): { program: CalcdownProgram; mess
   const parsed = parseCalcdownMarkdown(markdown);
 
   const inputs: InputDefinition[] = [];
+  const tables: DataTable[] = [];
   const nodes: CalcNode[] = [];
 
   const seenInputs = new Set<string>();
+  const seenTables = new Set<string>();
   const seenNodes = new Set<string>();
 
   for (const block of parsed.codeBlocks) {
@@ -64,9 +69,60 @@ export function parseProgram(markdown: string): { program: CalcdownProgram; mess
           });
           continue;
         }
+        if (seenTables.has(input.name)) {
+          messages.push({
+            severity: "error",
+            message: `Name conflict: '${input.name}' is defined as both an input and a data table`,
+            line: input.line,
+            blockLang: block.lang,
+            nodeName: input.name,
+          });
+          continue;
+        }
         seenInputs.add(input.name);
         inputs.push(input);
       }
+    }
+
+    if (block.lang === "data") {
+      const res = parseDataBlock(block);
+      messages.push(...res.messages);
+      const table = res.table;
+      if (!table) continue;
+
+      if (seenTables.has(table.name)) {
+        messages.push({
+          severity: "error",
+          message: `Duplicate table name across data blocks: ${table.name}`,
+          line: table.line,
+          blockLang: block.lang,
+          nodeName: table.name,
+        });
+        continue;
+      }
+      if (seenInputs.has(table.name)) {
+        messages.push({
+          severity: "error",
+          message: `Name conflict: '${table.name}' is defined as both a data table and an input`,
+          line: table.line,
+          blockLang: block.lang,
+          nodeName: table.name,
+        });
+        continue;
+      }
+      if (seenNodes.has(table.name)) {
+        messages.push({
+          severity: "error",
+          message: `Name conflict: '${table.name}' is defined as both a data table and a calc node`,
+          line: table.line,
+          blockLang: block.lang,
+          nodeName: table.name,
+        });
+        continue;
+      }
+
+      seenTables.add(table.name);
+      tables.push(table);
     }
 
     if (block.lang === "calc") {
@@ -104,6 +160,16 @@ export function parseProgram(markdown: string): { program: CalcdownProgram; mess
           });
           continue;
         }
+        if (seenTables.has(node.name)) {
+          messages.push({
+            severity: "error",
+            message: `Name conflict: '${node.name}' is defined as both a calc node and a data table`,
+            line: node.line,
+            blockLang: block.lang,
+            nodeName: node.name,
+          });
+          continue;
+        }
         seenNodes.add(node.name);
         nodes.push(node);
       }
@@ -115,6 +181,7 @@ export function parseProgram(markdown: string): { program: CalcdownProgram; mess
       frontMatter: parsed.frontMatter,
       blocks: parsed.codeBlocks,
       inputs,
+      tables,
       nodes,
     },
     messages,
@@ -128,8 +195,38 @@ function normalizeOverrideValue(def: InputDefinition, value: unknown): InputValu
     throw new Error(`Invalid override for ${def.name} (expected date string)`);
   }
 
+  if (def.type.name === "integer") {
+    if (typeof value === "number") {
+      if (!Number.isFinite(value)) throw new Error(`Invalid override for ${def.name} (expected integer)`);
+      return Math.trunc(value);
+    }
+    if (typeof value === "string") {
+      const n = Number(value);
+      if (!Number.isFinite(n)) throw new Error(`Invalid override for ${def.name} (expected integer)`);
+      return Math.trunc(n);
+    }
+    throw new Error(`Invalid override for ${def.name} (expected integer)`);
+  }
+
+  if (def.type.name === "number" || def.type.name === "decimal" || def.type.name === "percent" || def.type.name === "currency") {
+    if (typeof value === "number") {
+      if (!Number.isFinite(value)) throw new Error(`Invalid override for ${def.name} (expected number)`);
+      return value;
+    }
+    if (typeof value === "string") {
+      const n = Number(value);
+      if (!Number.isFinite(n)) throw new Error(`Invalid override for ${def.name} (expected number)`);
+      return n;
+    }
+    throw new Error(`Invalid override for ${def.name} (expected number)`);
+  }
+
+  // Fallback: if the default value is numeric, accept numeric overrides for unknown/custom types.
   if (typeof def.defaultValue === "number") {
-    if (typeof value === "number") return value;
+    if (typeof value === "number") {
+      if (!Number.isFinite(value)) throw new Error(`Invalid override for ${def.name} (expected number)`);
+      return value;
+    }
     if (typeof value === "string") {
       const n = Number(value);
       if (!Number.isFinite(n)) throw new Error(`Invalid override for ${def.name} (expected number)`);
@@ -166,10 +263,19 @@ export function evaluateProgram(
     inputs[def.name] = def.defaultValue;
   }
 
+  const tables: Record<string, unknown> = Object.create(null);
+  for (const t of program.tables) {
+    tables[t.name] = t.rows;
+  }
+
   for (const [key, value] of Object.entries(overrides)) {
     const def = program.inputs.find((d) => d.name === key);
     if (!def) {
-      messages.push({ severity: "warning", message: `Unknown input override: ${key}` });
+      if (key in tables) {
+        tables[key] = value;
+        continue;
+      }
+      messages.push({ severity: "warning", message: `Unknown override: ${key}` });
       continue;
     }
     try {
@@ -183,10 +289,14 @@ export function evaluateProgram(
     }
   }
 
-  const evalRes = evaluateNodes(program.nodes, inputs, std);
+  const evalRes = evaluateNodes(
+    program.nodes,
+    Object.assign(Object.create(null), inputs, tables),
+    std
+  );
   messages.push(...evalRes.messages);
 
-  const values: Record<string, unknown> = Object.assign(Object.create(null), inputs, evalRes.values);
+  const values: Record<string, unknown> = Object.assign(Object.create(null), inputs, tables, evalRes.values);
   return { values, messages };
 }
 

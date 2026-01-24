@@ -16,6 +16,7 @@ These instructions apply to the whole repository unless a more specific `AGENTS.
 - `make test` — Node test runner + coverage thresholds (stdlib)
 - `make check` — `typecheck + analyze + test`
 - `make demo` — build then serve demos
+- `make dump` — write a single-file repo dump for LLM review (gitignored)
 
 ## Dependency policy
 
@@ -31,7 +32,6 @@ These instructions apply to the whole repository unless a more specific `AGENTS.
 
 ## Documentation rules
 
-- Specs are versioned under `docs/` (e.g. `docs/calcdown-0.2.md`, `docs/stdlib-0.2.md`).
+- Specs are versioned under `docs/` (e.g. `docs/calcdown-0.3.md`, `docs/stdlib-0.3.md`).
 - Older versions stay **archived/superseded**, not rewritten.
 - Keep examples executable and consistent with the latest spec.
-

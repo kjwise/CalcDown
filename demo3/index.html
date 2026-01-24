@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>CalcDown Demo 2</title>
+    <title>CalcDown Demo 3</title>
     <script type="importmap">
       {
         "imports": {
@@ -69,37 +69,6 @@
         border-radius: 10px;
         font-size: 14px;
       }
-      .results {
-        display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-        gap: 10px;
-      }
-      .card {
-        border: 1px solid #e8eaf2;
-        border-radius: 12px;
-        padding: 12px;
-        background: #fbfcff;
-      }
-      .card .k {
-        font-size: 12px;
-        color: #6a718a;
-        margin-bottom: 6px;
-      }
-      .card .v {
-        font-size: 22px;
-        font-weight: 650;
-        color: #111428;
-      }
-      pre {
-        white-space: pre-wrap;
-        word-break: break-word;
-        background: #0b1020;
-        color: #e7ebff;
-        padding: 12px;
-        border-radius: 10px;
-        margin: 0;
-        font-size: 12px;
-      }
       textarea {
         width: 100%;
         min-height: 42vh;
@@ -120,6 +89,84 @@
         font-size: 12px;
         margin-bottom: 8px;
       }
+      pre {
+        white-space: pre-wrap;
+        word-break: break-word;
+        background: #0b1020;
+        color: #e7ebff;
+        padding: 12px;
+        border-radius: 10px;
+        margin: 0;
+        font-size: 12px;
+      }
+
+      .views {
+        display: grid;
+        gap: 12px;
+      }
+      .view {
+        border: 1px solid #e8eaf2;
+        border-radius: 12px;
+        background: #fbfcff;
+        padding: 12px;
+      }
+      .view-title {
+        font-size: 12px;
+        color: #6a718a;
+        margin: 0 0 10px 0;
+      }
+
+      .cards {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+        gap: 10px;
+      }
+      .card {
+        border: 1px solid #e8eaf2;
+        border-radius: 12px;
+        padding: 12px;
+        background: #fff;
+      }
+      .card .k {
+        font-size: 12px;
+        color: #6a718a;
+        margin-bottom: 6px;
+      }
+      .card .v {
+        font-size: 22px;
+        font-weight: 650;
+        color: #111428;
+      }
+
+      table {
+        width: 100%;
+        border-collapse: separate;
+        border-spacing: 0;
+        font-size: 12px;
+      }
+      th,
+      td {
+        border-bottom: 1px solid #e8eaf2;
+        padding: 8px 10px;
+        text-align: left;
+        vertical-align: top;
+      }
+      th {
+        color: #6a718a;
+        font-weight: 600;
+        background: #f6f7fb;
+        position: sticky;
+        top: 0;
+      }
+      td input {
+        width: 100%;
+        box-sizing: border-box;
+        padding: 6px 8px;
+        border: 1px solid #d9dbe5;
+        border-radius: 8px;
+        font-size: 12px;
+        background: #fff;
+      }
     </style>
   </head>
   <body>
@@ -129,7 +176,7 @@
         <input id="live" type="checkbox" checked />
         Live (0.5s debounce)
       </label>
-      <span class="muted">Default: <code>docs/examples/savings.calc.md</code></span>
+      <span class="muted">Default: <code>docs/examples/invoice.calc.md</code></span>
       <span class="muted">Source accepts JSON or YAML for <code>view</code> blocks.</span>
     </header>
 
@@ -146,7 +193,7 @@
 
       <div class="panel">
         <h2>View</h2>
-        <div id="results" class="results"></div>
+        <div id="views" class="views"></div>
         <details>
           <summary>Messages</summary>
           <pre id="messages"></pre>
@@ -154,6 +201,6 @@
       </div>
     </div>
 
-    <script type="module" src="../dist/demo2.js"></script>
+    <script type="module" src="../dist/demo3.js"></script>
   </body>
 </html>

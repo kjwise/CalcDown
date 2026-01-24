@@ -174,31 +174,31 @@ function extractCardsView(blocks: FencedCodeBlock[], values: Record<string, unkn
     if (b.lang !== "view") continue;
     const parsed = parseViewBlock(b);
     messages.push(...parsed.messages);
-    if (!parsed.view) continue;
-    const view = parsed.view;
-    if (view.type !== "cards") continue;
-    if (!view.spec || typeof view.spec !== "object" || view.spec === null) continue;
+    for (const view of parsed.views) {
+      if (view.type !== "cards") continue;
+      if (!view.spec || typeof view.spec !== "object" || view.spec === null) continue;
 
-    const spec = view.spec as Record<string, unknown>;
-    const itemsRaw = spec.items;
-    if (!Array.isArray(itemsRaw)) continue;
+      const spec = view.spec as Record<string, unknown>;
+      const itemsRaw = spec.items;
+      if (!Array.isArray(itemsRaw)) continue;
 
-    const items: { key: string; label?: string; format?: CardFormat }[] = [];
-    for (const it of itemsRaw) {
-      if (!it || typeof it !== "object") continue;
-      const obj = it as Record<string, unknown>;
-      const key = typeof obj.key === "string" ? obj.key : null;
-      if (!key) continue;
-      const label = typeof obj.label === "string" ? obj.label : undefined;
-      const format = (obj.format as CardFormat | undefined) ?? undefined;
-      items.push({ key, ...(label ? { label } : {}), ...(format ? { format } : {}) });
+      const items: { key: string; label?: string; format?: CardFormat }[] = [];
+      for (const it of itemsRaw) {
+        if (!it || typeof it !== "object") continue;
+        const obj = it as Record<string, unknown>;
+        const key = typeof obj.key === "string" ? obj.key : null;
+        if (!key) continue;
+        const label = typeof obj.label === "string" ? obj.label : undefined;
+        const format = (obj.format as CardFormat | undefined) ?? undefined;
+        items.push({ key, ...(label ? { label } : {}), ...(format ? { format } : {}) });
+      }
+
+      if (items.length === 0) continue;
+
+      const title = typeof spec.title === "string" ? spec.title : null;
+      renderCards(title, items, values);
+      return { rendered: true, messages };
     }
-
-    if (items.length === 0) continue;
-
-    const title = typeof spec.title === "string" ? spec.title : null;
-    renderCards(title, items, values);
-    return { rendered: true, messages };
   }
 
   return { rendered: false, messages };

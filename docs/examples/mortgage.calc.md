@@ -1,13 +1,13 @@
 ---
 title: Simple Mortgage (CalcDown example)
-calcdown: 0.2
+calcdown: 0.3
 ---
 
 # Mortgage calculator
 
 ## Inputs
 
-```inputs
+``` inputs
 loan_amount   : currency(USD) = 300000
 interest_rate : percent       = 5.0
 term_years    : integer       = 30
@@ -16,7 +16,7 @@ start_date    : date          = 2024-01-01
 
 ## Logic
 
-```calc
+``` calc
 const total_months = term_years * 12;
 const rate_mo = std.finance.toMonthlyRate(interest_rate);
 const payment = std.finance.pmt(rate_mo, total_months, -loan_amount);
@@ -38,24 +38,33 @@ const schedule = std.data.scan(
 );
 ```
 
-Monthly payment: `{{ payment }}`  
+Monthly payment: `{{ payment }}`
 Total interest: `{{ total_interest }}`
 
 ## View
 
-```view
+``` view
 {
   "id": "paydown",
-  "type": "chart",
-  "library": "vega-lite",
+  "library": "calcdown",
   "source": "schedule",
   "spec": {
+    "kind": "line",
     "title": "Loan paydown",
-    "mark": "line",
-    "encoding": {
-      "x": { "field": "date", "type": "temporal", "title": "Date" },
-      "y": { "field": "closing_balance", "type": "quantitative", "title": "Closing balance" }
+    "x": {
+      "format": "date",
+      "key": "date",
+      "label": "Date"
+    },
+    "y": {
+      "format": {
+        "digits": 2,
+        "kind": "number"
+      },
+      "key": "closing_balance",
+      "label": "Closing balance"
     }
-  }
+  },
+  "type": "chart"
 }
 ```

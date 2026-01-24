@@ -4,6 +4,13 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>CalcDown Demo</title>
+    <script type="importmap">
+      {
+        "imports": {
+          "js-yaml": "../node_modules/js-yaml/dist/js-yaml.mjs"
+        }
+      }
+    </script>
     <style>
       body {
         font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
@@ -96,6 +103,7 @@
         </select>
       </label>
       <span class="muted">Loads <code>docs/examples/mortgage.calc.md</code> by default.</span>
+      <span class="muted">Source accepts JSON or YAML for <code>view</code> blocks.</span>
     </header>
     <div class="row">
       <textarea id="source" spellcheck="false"></textarea>

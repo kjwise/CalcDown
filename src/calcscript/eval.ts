@@ -9,6 +9,20 @@ export interface EvalResult {
 
 const bannedProperties = new Set(["__proto__", "prototype", "constructor"]);
 
+const NODE_ERROR = Symbol("calcdown.node.error");
+
+type NodeErrorSentinel = { [NODE_ERROR]: { nodeName: string; message: string } };
+
+function makeNodeError(nodeName: string, message: string): NodeErrorSentinel {
+  const sentinel = Object.create(null) as NodeErrorSentinel;
+  (sentinel as unknown as Record<symbol, unknown>)[NODE_ERROR] = { nodeName, message };
+  return sentinel;
+}
+
+function isNodeError(v: unknown): v is NodeErrorSentinel {
+  return (typeof v === "object" || typeof v === "function") && v !== null && NODE_ERROR in (v as object);
+}
+
 function safeGet(obj: unknown, prop: string): unknown {
   if (bannedProperties.has(prop)) throw new Error(`Disallowed property access: ${prop}`);
   if ((typeof obj !== "object" && typeof obj !== "function") || obj === null) {
@@ -17,24 +31,59 @@ function safeGet(obj: unknown, prop: string): unknown {
   return (obj as Record<string, unknown>)[prop];
 }
 
-function evalExpr(expr: Expr, env: Record<string, unknown>): unknown {
+interface EvalContext {
+  stdFunctions: Set<Function>;
+}
+
+function collectStdFunctions(std: unknown): Set<Function> {
+  const out = new Set<Function>();
+  const seen = new WeakSet<object>();
+
+  function visit(v: unknown): void {
+    if ((typeof v !== "object" && typeof v !== "function") || v === null) return;
+    const obj = v as object;
+    if (seen.has(obj)) return;
+    seen.add(obj);
+
+    if (typeof v === "function") {
+      out.add(v);
+      return;
+    }
+
+    for (const key of Object.keys(v as Record<string, unknown>)) {
+      visit((v as Record<string, unknown>)[key]);
+    }
+  }
+
+  visit(std);
+  return out;
+}
+
+function evalExpr(expr: Expr, env: Record<string, unknown>, ctx: EvalContext): unknown {
   switch (expr.kind) {
     case "number":
     case "string":
     case "boolean":
       return expr.value;
     case "identifier": {
-      if (expr.name in env) return env[expr.name];
+      if (expr.name in env) {
+        const v = env[expr.name];
+        if (isNodeError(v)) {
+          const info = v[NODE_ERROR];
+          throw new Error(`Upstream error in '${info.nodeName}': ${info.message}`);
+        }
+        return v;
+      }
       throw new Error(`Unknown identifier: ${expr.name}`);
     }
     case "unary": {
-      const v = evalExpr(expr.expr, env);
+      const v = evalExpr(expr.expr, env, ctx);
       if (typeof v !== "number") throw new Error("Unary '-' expects number");
       return -v;
     }
     case "binary": {
-      const a = evalExpr(expr.left, env);
-      const b = evalExpr(expr.right, env);
+      const a = evalExpr(expr.left, env, ctx);
+      const b = evalExpr(expr.right, env, ctx);
       if (typeof a !== "number" || typeof b !== "number") {
         throw new Error(`Binary '${expr.op}' expects numbers`);
       }
@@ -46,6 +95,7 @@ function evalExpr(expr: Expr, env: Record<string, unknown>): unknown {
         case "*":
           return a * b;
         case "/":
+          if (b === 0) throw new Error("Division by zero");
           return a / b;
         case "**":
           return a ** b;
@@ -54,23 +104,24 @@ function evalExpr(expr: Expr, env: Record<string, unknown>): unknown {
       }
     }
     case "member": {
-      const obj = evalExpr(expr.object, env);
+      const obj = evalExpr(expr.object, env, ctx);
       return safeGet(obj, expr.property);
     }
     case "call": {
       if (!isStdMemberPath(expr.callee)) {
-        throw new Error("Only std.* function calls are supported in the 0.2 evaluator");
+        throw new Error("Only std.* function calls are supported in the 0.3 evaluator");
       }
-      const fn = evalExpr(expr.callee, env);
+      const fn = evalExpr(expr.callee, env, ctx);
       if (typeof fn !== "function") throw new Error("Callee is not a function");
-      const args = expr.args.map((a) => evalExpr(a, env));
+      if (!ctx.stdFunctions.has(fn)) throw new Error("Only std library functions may be called");
+      const args = expr.args.map((a) => evalExpr(a, env, ctx));
       return fn(...args);
     }
     case "object": {
       const out: Record<string, unknown> = Object.create(null);
       for (const p of expr.properties) {
         if (bannedProperties.has(p.key)) throw new Error(`Disallowed object key: ${p.key}`);
-        out[p.key] = evalExpr(p.value, env);
+        out[p.key] = evalExpr(p.value, env, ctx);
       }
       return out;
     }
@@ -83,9 +134,10 @@ function evalExpr(expr: Expr, env: Record<string, unknown>): unknown {
         for (let i = 0; i < params.length; i++) {
           const param = params[i];
           if (param === undefined) throw new Error("Invalid arrow function parameter");
+          if (param === "std") throw new Error("The identifier 'std' is reserved and cannot be used as an arrow parameter");
           child[param] = args[i];
         }
-        return evalExpr(body, child);
+        return evalExpr(body, child, ctx);
       };
     }
     default: {
@@ -103,9 +155,16 @@ export function evaluateNodes(
   const messages: CalcdownMessage[] = [];
   const values: Record<string, unknown> = Object.create(null);
   const env: Record<string, unknown> = Object.assign(Object.create(null), inputs, { std });
+  const ctx: EvalContext = { stdFunctions: collectStdFunctions(std) };
 
   const nodeByName = new Map(nodes.map((n) => [n.name, n]));
   const nodeNames = new Set(nodes.map((n) => n.name));
+
+  for (const n of nodes) {
+    if (!n.expr) {
+      env[n.name] = makeNodeError(n.name, "Invalid or missing expression");
+    }
+  }
 
   const indegree = new Map<string, number>();
   const outgoing = new Map<string, string[]>();
@@ -148,16 +207,18 @@ export function evaluateNodes(
     if (!node) continue;
     if (!node.expr) continue;
     try {
-      const v = evalExpr(node.expr, env);
+      const v = evalExpr(node.expr, env, ctx);
       values[name] = v;
       env[name] = v;
     } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
       messages.push({
         severity: "error",
-        message: err instanceof Error ? err.message : String(err),
+        message: msg,
         line: node.line,
         nodeName: node.name,
       });
+      env[node.name] = makeNodeError(node.name, msg);
     }
   }
 

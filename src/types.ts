@@ -52,6 +52,14 @@ export interface InputsBlock {
   inputs: InputDefinition[];
 }
 
+export interface DataTable {
+  name: string;
+  primaryKey: string;
+  columns: Record<string, InputType>;
+  rows: Record<string, unknown>[];
+  line: number;
+}
+
 export interface DataBlock {
   kind: "data";
   block: FencedCodeBlock;
@@ -68,4 +76,3 @@ export interface ViewBlock {
 }
 
 export type CalcdownBlock = InputsBlock | DataBlock | CalcBlock | ViewBlock;
-

@@ -11,6 +11,8 @@ export interface CalcNode {
   line: number;
 }
 
+const bannedProperties = new Set(["__proto__", "prototype", "constructor"]);
+
 function collectDependencies(expr: Expr, out: Set<string>): void {
   switch (expr.kind) {
     case "identifier":
@@ -51,6 +53,87 @@ function collectDependencies(expr: Expr, out: Set<string>): void {
   }
 }
 
+function validateExpr(expr: Expr, messages: CalcdownMessage[], line: number, nodeName: string): void {
+  switch (expr.kind) {
+    case "number":
+    case "string":
+    case "boolean":
+    case "identifier":
+      return;
+    case "unary":
+      validateExpr(expr.expr, messages, line, nodeName);
+      return;
+    case "binary":
+      validateExpr(expr.left, messages, line, nodeName);
+      validateExpr(expr.right, messages, line, nodeName);
+      return;
+    case "member":
+      if (bannedProperties.has(expr.property)) {
+        messages.push({
+          severity: "error",
+          message: `Disallowed property access: ${expr.property}`,
+          line,
+          nodeName,
+        });
+      }
+      validateExpr(expr.object, messages, line, nodeName);
+      return;
+    case "call":
+      validateExpr(expr.callee, messages, line, nodeName);
+      for (const a of expr.args) validateExpr(a, messages, line, nodeName);
+      return;
+    case "object":
+      for (const p of expr.properties) {
+        if (bannedProperties.has(p.key)) {
+          messages.push({
+            severity: "error",
+            message: `Disallowed object key: ${p.key}`,
+            line,
+            nodeName,
+          });
+        }
+        validateExpr(p.value, messages, line, nodeName);
+      }
+      return;
+    case "arrow": {
+      const seen = new Set<string>();
+      for (const p of expr.params) {
+        if (p === "std") {
+          messages.push({
+            severity: "error",
+            message: "The identifier 'std' is reserved and cannot be used as an arrow parameter",
+            line,
+            nodeName,
+          });
+        }
+        if (bannedProperties.has(p)) {
+          messages.push({
+            severity: "error",
+            message: `Disallowed arrow parameter name: ${p}`,
+            line,
+            nodeName,
+          });
+        }
+        if (seen.has(p)) {
+          messages.push({
+            severity: "error",
+            message: `Duplicate arrow parameter name: ${p}`,
+            line,
+            nodeName,
+          });
+        }
+        seen.add(p);
+      }
+      validateExpr(expr.body, messages, line, nodeName);
+      return;
+    }
+    default: {
+      const _exhaustive: never = expr;
+      return _exhaustive;
+    }
+  }
+}
+
 export function compileCalcScript(source: string, baseLine: number): {
   nodes: CalcNode[];
   messages: CalcdownMessage[];
@@ -76,6 +159,7 @@ export function compileCalcScript(source: string, baseLine: number): {
 
     try {
       const expr = parseExpression(decl.exprText);
+      validateExpr(expr, messages, decl.line, decl.name);
       const deps = new Set<string>();
       collectDependencies(expr, deps);
       deps.delete("std");

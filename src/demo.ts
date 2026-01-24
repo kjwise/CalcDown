@@ -42,7 +42,7 @@ async function loadDefault(source: HTMLTextAreaElement): Promise<void> {
   } catch {
     source.value = `---
 title: Minimal
-calcdown: 0.2
+calcdown: 0.3
 ---
 
 ## Inputs
@@ -408,46 +408,50 @@ function renderViews(
     if (block.lang !== "view") continue;
     const parsed = parseViewBlock(block);
     messages.push(...parsed.messages);
-    if (!parsed.view) continue;
+    if (parsed.views.length === 0) continue;
 
-    const view = parsed.view;
-    if (view.type !== "chart") continue;
-    if (!view.source) continue;
-    if (!view.spec || typeof view.spec !== "object" || view.spec === null) continue;
+    for (const view of parsed.views) {
+      if (view.type !== "chart") continue;
+      if (!view.source) continue;
+      if (!view.spec || typeof view.spec !== "object" || view.spec === null) continue;
 
-    const spec = view.spec as Record<string, unknown>;
-    const encoding = spec.encoding as Record<string, unknown> | undefined;
-    const x = encoding?.x as Record<string, unknown> | undefined;
-    const y = encoding?.y as Record<string, unknown> | undefined;
-    const xField = typeof x?.field === "string" ? x.field : null;
-    const yField = typeof y?.field === "string" ? y.field : null;
-    const specMark = typeof spec.mark === "string" ? spec.mark : null;
-    const mark = chartMode === "spec" ? specMark : chartMode;
-    const title = typeof spec.title === "string" ? spec.title : view.id ?? "Chart";
+      let xField: string | null = null;
+      let yField: string | null = null;
+      let specMark: string | null = null;
+      let title = view.id ?? "Chart";
 
-    if (!xField || !yField) continue;
+      if (view.library === "calcdown") {
+        const spec = view.spec as Record<string, unknown>;
+        const x = spec.x as Record<string, unknown> | undefined;
+        const y = spec.y as Record<string, unknown> | undefined;
+        xField = typeof x?.key === "string" ? x.key : null;
+        yField = typeof y?.key === "string" ? y.key : null;
+        specMark = typeof spec.kind === "string" ? spec.kind : null;
+        title = typeof spec.title === "string" ? spec.title : title;
+      } else {
+        // Best-effort Vega-Lite-ish parsing for the demo.
+        const spec = view.spec as Record<string, unknown>;
+        const encoding = spec.encoding as Record<string, unknown> | undefined;
+        const x = encoding?.x as Record<string, unknown> | undefined;
+        const y = encoding?.y as Record<string, unknown> | undefined;
+        xField = typeof x?.field === "string" ? x.field : null;
+        yField = typeof y?.field === "string" ? y.field : null;
+        specMark = typeof spec.mark === "string" ? spec.mark : null;
+        title = typeof spec.title === "string" ? spec.title : title;
+      }
 
-    const rows = values[view.source];
-    if (!Array.isArray(rows)) continue;
+      const mark = chartMode === "spec" ? specMark : chartMode;
 
-    if (mark === "line") {
-      renderLineChart(
-        charts,
-        title,
-        `${view.source}.${yField} over ${xField}`,
-        rows,
-        xField,
-        yField
-      );
-    } else if (mark === "bar" || mark === "column") {
-      renderBarChart(
-        charts,
-        title,
-        `${view.source}.${yField} by ${xField}`,
-        rows,
-        xField,
-        yField
-      );
+      if (!xField || !yField) continue;
+
+      const rows = values[view.source];
+      if (!Array.isArray(rows)) continue;
+
+      if (mark === "line") {
+        renderLineChart(charts, title, `${view.source}.${yField} over ${xField}`, rows, xField, yField);
+      } else if (mark === "bar" || mark === "column") {
+        renderBarChart(charts, title, `${view.source}.${yField} by ${xField}`, rows, xField, yField);
+      }
     }
   }
 

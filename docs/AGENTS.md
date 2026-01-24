@@ -22,6 +22,5 @@ Keep the CalcDown specs and examples **pristine**: clear, consistent, and easy t
 ## Examples
 
 - Put end-to-end examples in `docs/examples/*.calc.md`.
-- Ensure examples match the latest spec version in front matter (`calcdown: 0.2`, etc.).
-- Prefer JSON `view` blocks for now (the demo parser is JSON-only).
-
+- Ensure examples match the latest spec version in front matter (`calcdown: 0.3`, etc.).
+- Prefer JSON `view` blocks for portability; YAML is accepted in demos as a convenience.
