@@ -195,6 +195,25 @@ function formatViewBlock(content) {
   return stableJson(value);
 }
 
+function isClosingFenceLine(line, fence) {
+  const raw = line ?? "";
+  const trimmedLeft = raw.trimStart();
+  if (!trimmedLeft) return false;
+  const fenceChar = fence[0];
+  if (!fenceChar) return false;
+  if (trimmedLeft[0] !== fenceChar) return false;
+
+  let count = 0;
+  while (count < trimmedLeft.length && trimmedLeft[count] === fenceChar) count++;
+  if (count < fence.length) return false;
+
+  for (let i = count; i < trimmedLeft.length; i++) {
+    const ch = trimmedLeft[i];
+    if (ch !== " " && ch !== "\t") return false;
+  }
+  return true;
+}
+
 function parseFencedBlocks(markdown) {
   const lines = markdown.split(/\r?\n/);
   const out = [];
@@ -202,7 +221,7 @@ function parseFencedBlocks(markdown) {
 
   while (i < lines.length) {
     const line = lines[i] ?? "";
-    const open = line.match(/^(\s*)(```+)(.*)$/);
+    const open = line.match(/^(\s*)(`{3,}|~{3,})(.*)$/);
     if (!open) {
       out.push({ kind: "text", line });
       i++;
@@ -218,7 +237,7 @@ function parseFencedBlocks(markdown) {
     const contentLines = [];
     while (i < lines.length) {
       const l = lines[i] ?? "";
-      if (l.startsWith(fence)) {
+      if (isClosingFenceLine(l, fence)) {
         i++;
         break;
       }

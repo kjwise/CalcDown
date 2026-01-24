@@ -48,8 +48,16 @@ async function readText(p) {
   return await fs.readFile(p, "utf8");
 }
 
+function isHttpUri(uri) {
+  return /^https?:\/\//i.test(uri);
+}
+
+function sourceFileLabel(uri, baseDir) {
+  return isHttpUri(uri) ? uri : path.resolve(baseDir, uri);
+}
+
 async function loadUriText(uri, baseDir) {
-  if (/^https?:\\/\\//i.test(uri)) {
+  if (isHttpUri(uri)) {
     const res = await fetch(uri);
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     return await res.text();
@@ -116,6 +124,7 @@ async function loadExternalTable(table, originFile) {
 
   const messages = [];
   const baseDir = path.dirname(originFile);
+  const dataFileLabel = sourceFileLabel(source.uri, baseDir);
 
   let text;
   try {
@@ -151,7 +160,6 @@ async function loadExternalTable(table, originFile) {
   }
 
   let rawRows = [];
-  let dataFileLabel = source.uri;
 
   if (source.format === "csv") {
     const { header, rows } = parseCsvRowsToObjects(text);
@@ -162,7 +170,7 @@ async function loadExternalTable(table, originFile) {
           severity: "error",
           code: "CD_DATA_CSV_MISSING_COLUMN",
           message: `CSV source is missing declared column: ${col}`,
-          file: path.resolve(baseDir, source.uri),
+          file: dataFileLabel,
           line: 1,
           blockLang: "data",
           nodeName: table.name,
@@ -177,7 +185,6 @@ async function loadExternalTable(table, originFile) {
       }
       return out;
     });
-    dataFileLabel = path.resolve(baseDir, source.uri);
   } else if (source.format === "json") {
     const trimmed = text.trim();
     try {
@@ -194,14 +201,13 @@ async function loadExternalTable(table, originFile) {
         severity: "error",
         code: "CD_DATA_JSON_PARSE",
         message: err instanceof Error ? err.message : String(err),
-        file: path.resolve(baseDir, source.uri),
+        file: dataFileLabel,
         line: 1,
         blockLang: "data",
         nodeName: table.name,
       });
       return { rows: null, messages };
     }
-    dataFileLabel = path.resolve(baseDir, source.uri);
   } else {
     messages.push({
       severity: "error",
