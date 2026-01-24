@@ -1,0 +1,6 @@
+{
+  "entry": "calcdown.json",
+  "validate": { "exitCode": 1, "args": ["--strict"] },
+  "export": { "exitCode": 1, "args": ["--strict"] }
+}
+

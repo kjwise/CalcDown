@@ -1,0 +1,26 @@
+{
+  "calcdown": "0.7",
+  "documents": [
+    "conformance/cases/external-data-hash-mismatch/entry.calc.md"
+  ],
+  "entry": "conformance/cases/external-data-hash-mismatch/entry.calc.md",
+  "messages": [
+    {
+      "blockLang": "data",
+      "code": "CD_DATA_HASH_MISMATCH",
+      "file": "conformance/cases/external-data-hash-mismatch/entry.calc.md",
+      "line": 7,
+      "message": "Hash mismatch for data.csv (expected sha256:0000000000000000000000000000000000000000000000000000000000000000, got sha256:d1c0ff08eb00b8d2020f29eac03bd14280c6b3e1e446ff96633d194cffd8e601)",
+      "nodeName": "items",
+      "severity": "error"
+    }
+  ],
+  "values": {
+    "inputs": {},
+    "nodes": {},
+    "tables": {
+      "items": []
+    }
+  },
+  "views": []
+}

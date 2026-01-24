@@ -1,0 +1,35 @@
+{
+  "calcdown": "0.7",
+  "documents": [
+    "conformance/cases/sortby-runtime-order/entry.calc.md"
+  ],
+  "entry": "conformance/cases/sortby-runtime-order/entry.calc.md",
+  "messages": [],
+  "values": {
+    "inputs": {},
+    "nodes": {
+      "ids": [
+        "b",
+        "a",
+        "c"
+      ]
+    },
+    "tables": {
+      "t": [
+        {
+          "id": "b",
+          "n": 1
+        },
+        {
+          "id": "a",
+          "n": 2
+        },
+        {
+          "id": "c",
+          "n": 2
+        }
+      ]
+    }
+  },
+  "views": []
+}

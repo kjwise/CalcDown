@@ -1,0 +1,31 @@
+{
+  "calcdown": "0.7",
+  "documents": [
+    "conformance/cases/yaml-view-block/entry.calc.md"
+  ],
+  "entry": "conformance/cases/yaml-view-block/entry.calc.md",
+  "messages": [],
+  "values": {
+    "inputs": {},
+    "nodes": {
+      "total": 42
+    },
+    "tables": {}
+  },
+  "views": [
+    {
+      "id": "summary",
+      "library": "calcdown",
+      "spec": {
+        "items": [
+          {
+            "key": "total",
+            "label": "Total"
+          }
+        ],
+        "title": "Summary"
+      },
+      "type": "cards"
+    }
+  ]
+}

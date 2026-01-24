@@ -13,10 +13,10 @@ import { parseIsoDate } from "../dist/util/date.js";
 function usage() {
   return [
     "Usage:",
-    "  tools/calcdown.js validate <entry.calc.md|calcdown.json> [--lock calcdown.lock.json] [--date YYYY-MM-DD|--datetime ISO]",
+    "  tools/calcdown.js validate <entry.calc.md|calcdown.json> [--lock calcdown.lock.json] [--strict] [--date YYYY-MM-DD|--datetime ISO]",
     "  tools/calcdown.js diff <a.calc.md> <b.calc.md>",
     "  tools/calcdown.js lock <entry.calc.md|calcdown.json> [out.lock.json]",
-    "  tools/calcdown.js export <entry.calc.md|calcdown.json> [--out out.json] [--lock calcdown.lock.json] [--date YYYY-MM-DD|--datetime ISO]",
+    "  tools/calcdown.js export <entry.calc.md|calcdown.json> [--out out.json] [--lock calcdown.lock.json] [--strict] [--date YYYY-MM-DD|--datetime ISO]",
     "  tools/calcdown.js fmt [files...]",
     "",
     "Notes:",
@@ -63,7 +63,7 @@ function isHttpUri(uri) {
 }
 
 function sourceFileLabel(uri, baseDir) {
-  return isHttpUri(uri) ? uri : path.resolve(baseDir, uri);
+  return isHttpUri(uri) ? uri : projectRelative(path.resolve(baseDir, uri));
 }
 
 function parseCurrentDateTime(args) {
@@ -90,6 +90,15 @@ function parseCurrentDateTime(args) {
 function projectRelative(p) {
   const rel = path.relative(process.cwd(), p);
   return rel && !rel.startsWith("..") && !path.isAbsolute(rel) ? rel : p;
+}
+
+function normalizeMessageFile(m) {
+  if (!m || typeof m !== "object") return m;
+  const file = m.file;
+  if (typeof file !== "string" || !file.trim()) return m;
+  if (isHttpUri(file)) return m;
+  if (!path.isAbsolute(file)) return m;
+  return { ...m, file: projectRelative(file) };
 }
 
 async function loadUriText(uri, baseDir) {
@@ -624,9 +633,10 @@ async function cmdValidate(entry, opts = {}) {
   const summary = {
     entry: projectRelative(resolved.entryAbs),
     ...(resolved.manifestAbs ? { manifest: projectRelative(resolved.manifestAbs) } : {}),
-    documents: docs.map((d) => path.relative(process.cwd(), d.file)),
+    documents: docs.map((d) => projectRelative(d.file)),
     errors: messages.filter((m) => m && typeof m === "object" && m.severity === "error").length,
     warnings: messages.filter((m) => m && typeof m === "object" && m.severity === "warning").length,
+    ...(opts && typeof opts === "object" && opts.strict ? { strict: true } : {}),
   };
 
   const lockPathRaw = typeof opts.lockPath === "string" && opts.lockPath.trim() ? opts.lockPath.trim() : null;
@@ -638,10 +648,11 @@ async function cmdValidate(entry, opts = {}) {
     summary.warnings = messages.filter((m) => m && typeof m === "object" && m.severity === "warning").length;
   }
 
-  const payload = { summary, messages };
+  const payload = { summary, messages: messages.map(normalizeMessageFile) };
   process.stdout.write(`${JSON.stringify(payload, null, 2)}\n`);
 
   if (summary.errors > 0) process.exitCode = 1;
+  if (opts && typeof opts === "object" && opts.strict && summary.warnings > 0) process.exitCode = 1;
 }
 
 function asInputMap(program) {
@@ -1055,7 +1066,7 @@ async function cmdExport(entryArg, opts = {}) {
     documents: docs.map((d) => projectRelative(d.file)),
     values: { inputs, tables, nodes },
     views,
-    messages,
+    messages: messages.map(normalizeMessageFile),
   };
 
   const text = `${stableJsonPretty(out)}\n`;
@@ -1071,6 +1082,10 @@ async function cmdExport(entryArg, opts = {}) {
 
   const errors = messages.filter((m) => m && typeof m === "object" && m.severity === "error").length;
   if (errors > 0) process.exitCode = 1;
+  if (opts && typeof opts === "object" && opts.strict) {
+    const warnings = messages.filter((m) => m && typeof m === "object" && m.severity === "warning").length;
+    if (warnings > 0) process.exitCode = 1;
+  }
 }
 
 async function cmdFmt(args) {
@@ -1102,7 +1117,8 @@ async function main() {
     const lockIdx = args.indexOf("--lock");
     const lockPath = lockIdx !== -1 ? args[lockIdx + 1] : null;
     const currentDateTime = parseCurrentDateTime(args);
-    await cmdValidate(entry, { lockPath, ...(currentDateTime ? { currentDateTime } : {}) });
+    const strict = args.includes("--strict");
+    await cmdValidate(entry, { lockPath, strict, ...(currentDateTime ? { currentDateTime } : {}) });
     return;
   }
 
@@ -1130,7 +1146,8 @@ async function main() {
     const lockIdx = args.indexOf("--lock");
     const lockPath = lockIdx !== -1 ? args[lockIdx + 1] : null;
     const currentDateTime = parseCurrentDateTime(args);
-    await cmdExport(entry, { outPath, lockPath, ...(currentDateTime ? { currentDateTime } : {}) });
+    const strict = args.includes("--strict");
+    await cmdExport(entry, { outPath, lockPath, strict, ...(currentDateTime ? { currentDateTime } : {}) });
     return;
   }
 

@@ -2,7 +2,7 @@
 # make/node.mk — Node/TypeScript build and demo targets
 # ==============================================================================
 
-.PHONY: install build typecheck analyze lint test watch serve demo check check-node check-deps
+.PHONY: install build typecheck analyze lint test watch serve demo check verify check-node check-deps
 
 check-node: ## Check that node and npm are available
 	@command -v $(NODE) >/dev/null 2>&1 || { echo "ERROR: node not found on PATH."; exit 1; }
@@ -44,3 +44,5 @@ demo: build ## Build then serve demo
 	@$(MAKE) serve
 
 check: typecheck analyze test ## Run typecheck, static analysis, tests
+
+verify: check conformance ## Run check + deterministic conformance suite

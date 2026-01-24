@@ -1,0 +1,12 @@
+{
+  "messages": [],
+  "summary": {
+    "documents": [
+      "conformance/cases/vectorization-projection/entry.calc.md"
+    ],
+    "entry": "conformance/cases/vectorization-projection/entry.calc.md",
+    "errors": 0,
+    "strict": true,
+    "warnings": 0
+  }
+}

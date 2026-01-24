@@ -335,16 +335,58 @@ async function listDefaultFiles(root) {
 async function main() {
   const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
   const args = process.argv.slice(2);
-  const files = args.length ? args.map((p) => path.resolve(root, p)) : await listDefaultFiles(root);
+
+  let check = false;
+  const fileArgs = [];
+
+  for (let i = 0; i < args.length; i++) {
+    const a = args[i];
+    if (!a) continue;
+    if (a === "--check") {
+      check = true;
+      continue;
+    }
+    if (a === "--") {
+      for (let j = i + 1; j < args.length; j++) fileArgs.push(args[j]);
+      break;
+    }
+    if (a.startsWith("-")) {
+      throw new Error(`Unknown flag: ${a}`);
+    }
+    fileArgs.push(a);
+  }
+
+  const files = fileArgs.length ? fileArgs.map((p) => path.resolve(root, p)) : await listDefaultFiles(root);
 
   let changed = 0;
+  const changedFiles = [];
   for (const filePath of files) {
     const before = await fs.readFile(filePath, "utf8");
     const after = formatMarkdown(before);
-    if (after !== before) {
-      await fs.writeFile(filePath, after, "utf8");
-      changed++;
+    const after2 = formatMarkdown(after);
+    if (after2 !== after) {
+      throw new Error(`Non-idempotent formatting: ${path.relative(root, filePath)}`);
     }
+    if (after !== before) {
+      changed++;
+      changedFiles.push(path.relative(root, filePath));
+      if (!check) {
+        await fs.writeFile(filePath, after, "utf8");
+      }
+    }
+  }
+
+  if (check) {
+    if (changedFiles.length) {
+      process.stdout.write(`Would format ${files.length} file(s); ${changed} would change:\n`);
+      for (const f of changedFiles.sort((a, b) => a.localeCompare(b))) {
+        process.stdout.write(`- ${f}\n`);
+      }
+      process.exitCode = 1;
+      return;
+    }
+    process.stdout.write(`Formatting OK (${files.length} file(s)).\n`);
+    return;
   }
 
   process.stdout.write(`Formatted ${files.length} file(s), changed ${changed}.\n`);

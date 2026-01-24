@@ -1,0 +1,21 @@
+{
+  "messages": [
+    {
+      "code": "CD_CALC_UNKNOWN_PROPERTY",
+      "file": "conformance/cases/projection-missing-key/entry.calc.md",
+      "line": 17,
+      "message": "Row 1: Unknown property: unit_price",
+      "nodeName": "bad",
+      "severity": "error"
+    }
+  ],
+  "summary": {
+    "documents": [
+      "conformance/cases/projection-missing-key/entry.calc.md"
+    ],
+    "entry": "conformance/cases/projection-missing-key/entry.calc.md",
+    "errors": 1,
+    "strict": true,
+    "warnings": 0
+  }
+}

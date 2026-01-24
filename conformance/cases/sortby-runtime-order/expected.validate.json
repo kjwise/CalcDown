@@ -1,0 +1,12 @@
+{
+  "messages": [],
+  "summary": {
+    "documents": [
+      "conformance/cases/sortby-runtime-order/entry.calc.md"
+    ],
+    "entry": "conformance/cases/sortby-runtime-order/entry.calc.md",
+    "errors": 0,
+    "strict": true,
+    "warnings": 0
+  }
+}

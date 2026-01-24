@@ -1,0 +1,6 @@
+{
+  "entry": "entry.calc.md",
+  "validate": { "exitCode": 0, "args": ["--strict"] },
+  "export": { "exitCode": 0, "args": ["--strict"] }
+}
+

@@ -399,6 +399,8 @@ Implementations SHOULD provide `calcdown validate` that:
 - Validates schemas, node graph, and views
 - Outputs messages with stable codes and locations
 
+Implementations MAY accept `--strict` to treat warnings as errors (non-zero exit status).
+
 If `--lock <path>` is provided, `calcdown validate` MUST also enforce lock semantics (§2.4).
 
 If `--lock` is not provided and the project is loaded via a manifest with `lock`, `calcdown validate` MUST enforce that lockfile.
@@ -425,6 +427,8 @@ Implementations SHOULD provide `calcdown fmt` that:
   - Inline JSON objects SHOULD be serialized with stable key ordering
 - Pretty-prints `view` blocks deterministically (stable key ordering)
 
+Implementations MAY accept `--check` to fail if formatting would change any files (without writing changes).
+
 ### 8.5 `calcdown diff` (semantic diff)
 
 Implementations SHOULD provide `calcdown diff` that compares two versions of a project and reports semantic changes:
@@ -450,7 +454,13 @@ CalcDown ships a JSON Schema for the export output:
 
 If `--lock <path>` is provided, `calcdown export` MUST enforce lock semantics (§2.4). If the project is loaded via a manifest with `lock` and `--lock` is not provided, `calcdown export` MUST enforce that lockfile.
 
+Implementations MAY accept `--strict` to treat warnings as errors (non-zero exit status).
+
 Implementations MAY accept a runtime clock override for `std.date.now()` / `std.date.today()` (for example: `--date YYYY-MM-DD` or `--datetime ISO`).
+
+### 8.7 Deterministic conformance (recommended)
+
+Implementations SHOULD provide deterministic, machine-readable outputs for `validate` and `export`, enabling golden-file conformance checks in CI (for example: “run validate/export on a fixed set of projects and compare JSON output byte-for-byte”).
 
 ## 9) Safety model (0.7)
 

@@ -1,0 +1,11 @@
+{
+  "calcdown": "0.7",
+  "entry": "conformance/cases/manifest-lock-enforced/entry.calc.md",
+  "documents": [
+    {
+      "path": "conformance/cases/manifest-lock-enforced/entry.calc.md",
+      "sha256": "0000000000000000000000000000000000000000000000000000000000000000"
+    }
+  ]
+}
+

@@ -1,0 +1,69 @@
+{
+  "calcdown": "0.7",
+  "documents": [
+    "conformance/cases/vectorization-projection/entry.calc.md"
+  ],
+  "entry": "conformance/cases/vectorization-projection/entry.calc.md",
+  "messages": [],
+  "values": {
+    "inputs": {
+      "tax_rate": 20
+    },
+    "nodes": {
+      "labels": [
+        "ID-a",
+        "ID-b"
+      ],
+      "line_total": [
+        20,
+        5
+      ],
+      "prices": [
+        10,
+        5
+      ],
+      "qty": [
+        2,
+        1
+      ],
+      "subtotal": 25,
+      "tax": [
+        4,
+        1
+      ],
+      "total": [
+        24,
+        6
+      ]
+    },
+    "tables": {
+      "items": [
+        {
+          "id": "a",
+          "qty": 2,
+          "unit_price": 10
+        },
+        {
+          "id": "b",
+          "qty": 1,
+          "unit_price": 5
+        }
+      ]
+    }
+  },
+  "views": [
+    {
+      "id": "summary",
+      "library": "calcdown",
+      "spec": {
+        "items": [
+          {
+            "key": "subtotal",
+            "label": "subtotal"
+          }
+        ]
+      },
+      "type": "cards"
+    }
+  ]
+}

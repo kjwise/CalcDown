@@ -1,0 +1,39 @@
+{
+  "calcdown": "0.7",
+  "documents": [
+    "conformance/cases/view-unknown-source/entry.calc.md"
+  ],
+  "entry": "conformance/cases/view-unknown-source/entry.calc.md",
+  "messages": [
+    {
+      "blockLang": "view",
+      "code": "CD_VIEW_UNKNOWN_SOURCE",
+      "file": "conformance/cases/view-unknown-source/entry.calc.md",
+      "line": 15,
+      "message": "View source does not exist: missing_table_or_node",
+      "nodeName": "bad_table",
+      "severity": "error"
+    }
+  ],
+  "values": {
+    "inputs": {
+      "x": 1
+    },
+    "nodes": {
+      "y": 2
+    },
+    "tables": {}
+  },
+  "views": [
+    {
+      "id": "bad_table",
+      "library": "calcdown",
+      "source": "missing_table_or_node",
+      "spec": {
+        "editable": false,
+        "title": "Bad"
+      },
+      "type": "table"
+    }
+  ]
+}

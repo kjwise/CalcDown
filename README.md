@@ -89,6 +89,7 @@ Early-stage: the spec is evolving, and the code here is a minimal, safety-first 
 - Install deps: `make install`
 - Run the demos: `make demo` then open `http://localhost:5173/`
 - Run typecheck/tests: `make check`
+- Run full deterministic verification: `make verify`
 
 ## Demos
 
@@ -104,8 +105,12 @@ Early-stage: the spec is evolving, and the code here is a minimal, safety-first 
 The `make/*` targets wrap small scripts in `tools/`:
 
 - Canonicalize examples: `make fmt`
+- Check formatting (no writes): `make fmt-check`
 - Validate: `make validate ENTRY=docs/examples/mortgage.calc.md`
+- Validate strictly (fail on warnings): `make validate-strict ENTRY=docs/examples/mortgage.calc.md`
 - Lock: `make lock ENTRY=calcdown.json OUT=calcdown.lock.json`
 - Export: `make export ENTRY=calcdown.json EXPORT_OUT=build/export.json`
+- Export strictly (fail on warnings): `make export-strict ENTRY=calcdown.json EXPORT_OUT=build/export.json`
 - Semantic diff: `make diff A=docs/examples/mortgage.calc.md B=docs/examples/savings.calc.md`
 - Single-file repo dump for other LLMs: `make dump` (writes `build/dump_repo.md`, gitignored)
+- Conformance suite (golden outputs): `make conformance`

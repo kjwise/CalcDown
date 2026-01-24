@@ -1,0 +1,22 @@
+{
+  "messages": [
+    {
+      "blockLang": "view",
+      "code": "CD_VIEW_UNKNOWN_SOURCE",
+      "file": "conformance/cases/view-unknown-source/entry.calc.md",
+      "line": 15,
+      "message": "View source does not exist: missing_table_or_node",
+      "nodeName": "bad_table",
+      "severity": "error"
+    }
+  ],
+  "summary": {
+    "documents": [
+      "conformance/cases/view-unknown-source/entry.calc.md"
+    ],
+    "entry": "conformance/cases/view-unknown-source/entry.calc.md",
+    "errors": 1,
+    "strict": true,
+    "warnings": 0
+  }
+}

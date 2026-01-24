@@ -1,0 +1,12 @@
+{
+  "messages": [],
+  "summary": {
+    "documents": [
+      "conformance/cases/yaml-view-block/entry.calc.md"
+    ],
+    "entry": "conformance/cases/yaml-view-block/entry.calc.md",
+    "errors": 0,
+    "strict": true,
+    "warnings": 0
+  }
+}

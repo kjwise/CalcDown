@@ -1,0 +1,40 @@
+{
+  "calcdown": "0.7",
+  "documents": [
+    "conformance/cases/manifest-lock-enforced/entry.calc.md"
+  ],
+  "entry": "conformance/cases/manifest-lock-enforced/entry.calc.md",
+  "manifest": "conformance/cases/manifest-lock-enforced/calcdown.json",
+  "messages": [
+    {
+      "code": "CD_LOCK_DOC_HASH_MISMATCH",
+      "file": "conformance/cases/manifest-lock-enforced/calcdown.lock.json",
+      "message": "Document changed since lock: conformance/cases/manifest-lock-enforced/entry.calc.md",
+      "severity": "error"
+    }
+  ],
+  "values": {
+    "inputs": {
+      "x": 1
+    },
+    "nodes": {
+      "y": 2
+    },
+    "tables": {}
+  },
+  "views": [
+    {
+      "id": "summary",
+      "library": "calcdown",
+      "spec": {
+        "items": [
+          {
+            "key": "y",
+            "label": "y"
+          }
+        ]
+      },
+      "type": "cards"
+    }
+  ]
+}

@@ -219,6 +219,9 @@ async function loadExternalTablesForProgram(program, originFile) {
 
 async function main() {
   const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
+  const args = process.argv.slice(2);
+  const check = args.includes("--check");
+
   const examplesDir = path.join(root, "docs", "examples");
   const outFile = path.join(examplesDir, "compatibility-checklist.md");
 
@@ -275,7 +278,26 @@ async function main() {
   }
   lines.push("");
 
-  await fs.writeFile(outFile, `${lines.join("\n")}`, "utf8");
+  const next = `${lines.join("\n")}`;
+
+  if (check) {
+    let current = null;
+    try {
+      current = await fs.readFile(outFile, "utf8");
+    } catch {
+      current = null;
+    }
+    if (current !== next) {
+      process.stdout.write(`Out of date: ${path.relative(root, outFile)}\n`);
+      process.stdout.write("Run: node tools/check_examples.js\n");
+      process.exitCode = 1;
+      return;
+    }
+    process.stdout.write(`OK: ${path.relative(root, outFile)}\n`);
+    return;
+  }
+
+  await fs.writeFile(outFile, next, "utf8");
   process.stdout.write(`Wrote: ${path.relative(root, outFile)}\n`);
 }
 

@@ -1,0 +1,20 @@
+{
+  "messages": [
+    {
+      "code": "CD_LOCK_DOC_HASH_MISMATCH",
+      "file": "conformance/cases/manifest-lock-enforced/calcdown.lock.json",
+      "message": "Document changed since lock: conformance/cases/manifest-lock-enforced/entry.calc.md",
+      "severity": "error"
+    }
+  ],
+  "summary": {
+    "documents": [
+      "conformance/cases/manifest-lock-enforced/entry.calc.md"
+    ],
+    "entry": "conformance/cases/manifest-lock-enforced/entry.calc.md",
+    "errors": 1,
+    "manifest": "conformance/cases/manifest-lock-enforced/calcdown.json",
+    "strict": true,
+    "warnings": 0
+  }
+}
