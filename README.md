@@ -1,6 +1,68 @@
 # CalcDown
 
-CalcDown is a text-first format for “spreadsheet-like” models: typed data + a reactive compute graph + declarative views, designed to be friendly to AI editing and to Git diffs/merges.
+CalcDown is a text-first format for “spreadsheet-like” models: **typed data + a reactive compute graph + declarative views** — designed for **Git diffs/merges** and **AI-assisted editing**.
+
+This repo treats the **spec and examples as the product**; the implementation here is a small browser-first scaffold used to keep the spec honest.
+
+## Why
+
+Spreadsheets are incredibly expressive, but:
+
+- `.xlsx` is opaque and diff-hostile (PRs/merges are painful)
+- cell-address formulas (A1/B2) are brittle and hard for humans + LLMs to reason about
+- “the model” (logic) is tightly coupled to a particular UI grid state
+
+CalcDown makes the **semantic model** (names, types, formulas, views) the source of truth in plain text.
+
+## What
+
+A CalcDown project is one or more Markdown documents (recommended extension: `.calc.md`) with fenced blocks:
+
+- `inputs` — typed inputs with defaults
+- `data` — typed tables (inline JSONL or external CSV/JSON sources pinned by SHA‑256)
+- `calc` — CalcScript (sandboxed subset) defining computed nodes/tables
+- `view` — standardized, schema-validated views (`cards`, `table`, `chart`, `layout`)
+
+For multi-document projects, CalcDown 0.6 also defines:
+
+- `calcdown.json` — a project manifest (`entry`, optional `include`, optional `lock`)
+- `calcdown.lock.json` — a lockfile (document + external data hashes)
+
+## How (tiny example)
+
+````md
+---
+title: Savings growth
+calcdown: 0.6
+---
+
+``` inputs
+initial_balance      : number  = 10000
+monthly_contribution : number  = 500
+annual_return        : percent = 6.0
+years                : integer = 10
+```
+
+``` calc
+const months = years * 12;
+const rate_mo = std.finance.toMonthlyRate(annual_return);
+const balances = std.data.scan(
+  std.data.sequence(months),
+  (b) => (b * (1 + rate_mo)) + monthly_contribution,
+  { seed: initial_balance }
+);
+const final_balance = std.data.last(balances);
+```
+
+``` view
+{
+  "id": "summary",
+  "library": "calcdown",
+  "type": "cards",
+  "spec": { "title": "Summary", "items": [{ "key": "final_balance", "label": "Final balance" }] }
+}
+```
+````
 
 ## Docs
 
@@ -13,27 +75,30 @@ CalcDown is a text-first format for “spreadsheet-like” models: typed data + 
 
 ## Status
 
-Early-stage: this repo currently contains draft specifications and examples, not a full implementation.
+Early-stage: the spec is evolving, and the code here is a minimal, safety-first evaluator + demos (not a full spreadsheet UI/editor).
 
-## Demo (parser/evaluator scaffold)
+## Quickstart
 
-This repo includes a minimal browser-first TypeScript parser/evaluator scaffold:
+- Install deps: `make install`
+- Run the demos: `make demo` then open `http://localhost:5173/`
+- Run typecheck/tests: `make check`
 
-- Install deps: `make install` (or `npm install`)
-- Build: `make build` (or `npm run build`)
-- Static analysis: `make analyze` (or `npm run analyze`)
-- Tests: `make test` (built-in Node test runner + coverage thresholds)
-- Format examples: `make fmt` (normalizes `docs/examples/*.calc.md`)
-- Validate a document/project: `make validate ENTRY=docs/examples/mortgage.calc.md`
-- Write a lockfile: `make lock ENTRY=docs/examples/mortgage.calc.md OUT=calcdown.lock.json`
+## Demos
+
+- Index: `http://localhost:5173/`
+- Demo 1: `http://localhost:5173/demo/` (scratchpad + simple charts)
+- Demo 2: `http://localhost:5173/demo2/` (inputs → cards view)
+- Demo 3: `http://localhost:5173/demo3/` (tabular data input + computed tables + layout)
+- Demo 4: `http://localhost:5173/demo4/` (browse examples; render cards/table/chart/layout)
+- Demo 5: `http://localhost:5173/demo5/` (external CSV/JSON `data.source` + SHA‑256 verification)
+
+## Tooling (CLI-like)
+
+The `make/*` targets wrap small scripts in `tools/`:
+
+- Canonicalize examples: `make fmt`
+- Validate: `make validate ENTRY=docs/examples/mortgage.calc.md`
+- Lock: `make lock ENTRY=calcdown.json OUT=calcdown.lock.json`
+- Export: `make export ENTRY=calcdown.json EXPORT_OUT=build/export.json`
 - Semantic diff: `make diff A=docs/examples/mortgage.calc.md B=docs/examples/savings.calc.md`
-- Export evaluated values/views: `make export ENTRY=docs/examples/mortgage.calc.md EXPORT_OUT=build/export.json`
-- CI-ish local check: `make check`
-- Repo dump: `make dump` (writes `build/dump_repo.md`, gitignored)
-- Demo index: `make demo` then open `http://localhost:5173/`
-- Demo 1: open `http://localhost:5173/demo/`
-- Demo renders `view` blocks as simple SVG charts (JSON or YAML), with a UI toggle for line vs bar/column.
-- Demo 2: open `http://localhost:5173/demo2/` (cards view + inputs form) using `docs/examples/savings.calc.md`.
-- Demo 3: open `http://localhost:5173/demo3/` (tabular `data` input + computed table output) using `docs/examples/invoice.calc.md`.
-- Demo 4: open `http://localhost:5173/demo4/` (full view renderer) with an example selector.
-- Demo 5: open `http://localhost:5173/demo5/` (external CSV/JSON `data.source` loader + hash verification) using `docs/examples/invoice-external.calc.md`.
+- Single-file repo dump for other LLMs: `make dump` (writes `build/dump_repo.md`, gitignored)
