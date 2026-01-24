@@ -5,9 +5,11 @@ CalcDown is a text-first format for “spreadsheet-like” models: typed data + 
 ## Docs
 
 - `PURPOSE.md` — project goals and thesis
-- `docs/calcdown-0.1.md` — draft file format + execution model
-- `docs/stdlib-0.1.md` — draft standard library (`std.*`)
+- `docs/calcdown-0.2.md` — draft file format + execution model
+- `docs/stdlib-0.2.md` — draft standard library (`std.*`)
 - `docs/examples/mortgage.calc.md` — end-to-end example
+- `docs/examples/savings.calc.md` — simple “cards view” example
+- Archived drafts: `docs/calcdown-0.1.md`, `docs/stdlib-0.1.md`
 
 ## Status
 

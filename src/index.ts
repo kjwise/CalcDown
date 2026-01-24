@@ -34,10 +34,30 @@ export function parseProgram(markdown: string): { program: CalcdownProgram; mess
       const res = parseInputsBlock(block);
       messages.push(...res.messages);
       for (const input of res.inputs) {
+        if (input.name === "std") {
+          messages.push({
+            severity: "error",
+            message: "The identifier 'std' is reserved and cannot be used as an input name",
+            line: input.line,
+            blockLang: block.lang,
+            nodeName: input.name,
+          });
+          continue;
+        }
         if (seenInputs.has(input.name)) {
           messages.push({
             severity: "error",
             message: `Duplicate input name across blocks: ${input.name}`,
+            line: input.line,
+            blockLang: block.lang,
+            nodeName: input.name,
+          });
+          continue;
+        }
+        if (seenNodes.has(input.name)) {
+          messages.push({
+            severity: "error",
+            message: `Name conflict: '${input.name}' is defined as both an input and a calc node`,
             line: input.line,
             blockLang: block.lang,
             nodeName: input.name,
@@ -54,10 +74,30 @@ export function parseProgram(markdown: string): { program: CalcdownProgram; mess
       const compiled = compileCalcScript(block.content, baseLine);
       messages.push(...compiled.messages.map((m) => ({ ...m, blockLang: "calc" as const })));
       for (const node of compiled.nodes) {
+        if (node.name === "std") {
+          messages.push({
+            severity: "error",
+            message: "The identifier 'std' is reserved and cannot be used as a node name",
+            line: node.line,
+            blockLang: block.lang,
+            nodeName: node.name,
+          });
+          continue;
+        }
         if (seenNodes.has(node.name)) {
           messages.push({
             severity: "error",
             message: `Duplicate node name across calc blocks: ${node.name}`,
+            line: node.line,
+            blockLang: block.lang,
+            nodeName: node.name,
+          });
+          continue;
+        }
+        if (seenInputs.has(node.name)) {
+          messages.push({
+            severity: "error",
+            message: `Name conflict: '${node.name}' is defined as both a calc node and an input`,
             line: node.line,
             blockLang: block.lang,
             nodeName: node.name,
@@ -151,4 +191,3 @@ export function evaluateProgram(
 }
 
 export { std };
-

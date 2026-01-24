@@ -42,7 +42,7 @@ async function loadDefault(source: HTMLTextAreaElement): Promise<void> {
   } catch {
     source.value = `---
 title: Minimal
-calcdown: 0.1
+calcdown: 0.2
 ---
 
 ## Inputs

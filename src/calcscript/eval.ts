@@ -59,7 +59,7 @@ function evalExpr(expr: Expr, env: Record<string, unknown>): unknown {
     }
     case "call": {
       if (!isStdMemberPath(expr.callee)) {
-        throw new Error("Only std.* function calls are supported in the 0.1 evaluator");
+        throw new Error("Only std.* function calls are supported in the 0.2 evaluator");
       }
       const fn = evalExpr(expr.callee, env);
       if (typeof fn !== "function") throw new Error("Callee is not a function");

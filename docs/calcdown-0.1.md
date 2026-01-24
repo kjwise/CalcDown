@@ -1,5 +1,7 @@
 # CalcDown 0.1 (Draft Specification)
 
+Note: this draft is **superseded** by `docs/calcdown-0.2.md`.
+
 Status: **Draft / experimental**. This document describes an MVP-friendly, browser-first format for “spreadsheet-like” models as plain text.
 
 ## 1) Goals

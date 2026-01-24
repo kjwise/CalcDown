@@ -1,6 +1,6 @@
 ---
 title: Simple Mortgage (CalcDown example)
-calcdown: 0.1
+calcdown: 0.2
 ---
 
 # Mortgage calculator
@@ -25,7 +25,6 @@ const total_paid = payment * total_months;
 const total_interest = total_paid - loan_amount;
 
 // Amortization schedule without loops via scan (running state).
-// Note: CalcScript 0.1 currently supports expression-bodied arrow functions.
 const schedule = std.data.scan(
   std.data.sequence(total_months, { start: 0 }),
   (state, monthIndex) => ({

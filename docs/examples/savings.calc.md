@@ -1,6 +1,6 @@
 ---
 title: Savings growth (CalcDown demo2)
-calcdown: 0.1
+calcdown: 0.2
 ---
 
 # Savings growth

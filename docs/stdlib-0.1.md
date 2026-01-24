@@ -1,5 +1,7 @@
 # CalcDown Standard Library 0.1 (Draft)
 
+Note: this draft is **superseded** by `docs/stdlib-0.2.md`.
+
 Status: **Draft / experimental**. This is the minimal “Excel-grade” standard library expected to exist as `std` inside CalcScript evaluation.
 
 ## 1) Design rules
@@ -136,4 +138,4 @@ Depreciation:
 
 For constraints and model checks:
 
-- `std.assert(condition, message)` → throws a deterministic model error if `condition` is false.
+- `std.assert.that(condition, message)` → throws a deterministic model error if `condition` is false.
