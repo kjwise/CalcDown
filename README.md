@@ -10,6 +10,7 @@ CalcDown is a text-first format for “spreadsheet-like” models: typed data + 
 - `docs/examples/mortgage.calc.md` — end-to-end example
 - `docs/examples/savings.calc.md` — simple “cards view” example
 - Archived drafts: `docs/calcdown-0.1.md`, `docs/stdlib-0.1.md`
+- Agent guidance: `AGENTS.md` (plus scoped files in subfolders)
 
 ## Status
 
@@ -21,6 +22,9 @@ This repo includes a minimal browser-first TypeScript parser/evaluator scaffold:
 
 - Install deps: `make install` (or `npm install`)
 - Build: `make build` (or `npm run build`)
+- Static analysis: `make analyze` (or `npm run analyze`)
+- Tests: `make test` (built-in Node test runner + coverage thresholds)
+- CI-ish local check: `make check`
 - Demo: `make demo` then open `http://localhost:5173/demo/`
 - Demo renders `view` blocks as simple SVG charts (JSON only), with a UI toggle for line vs bar/column.
 - Demo 2: open `http://localhost:5173/demo2/` (cards view + inputs form) using `docs/examples/savings.calc.md`.

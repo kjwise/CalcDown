@@ -5,8 +5,11 @@
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "typecheck": "tsc -p tsconfig.json --noEmit",
+    "analyze": "tsc -p tsconfig.json --noEmit --noUnusedLocals --noUnusedParameters",
     "watch": "tsc -p tsconfig.json -w",
-    "serve": "python3 -m http.server 5173"
+    "serve": "python3 -m http.server 5173",
+    "pretest": "npm run build",
+    "test": "node --test --experimental-test-coverage --test-coverage-include=dist/stdlib/std.js --test-coverage-lines=90 --test-coverage-functions=90 --test-coverage-branches=90 test/*.test.js"
   },
   "devDependencies": {
     "typescript": "^5.7.3"
