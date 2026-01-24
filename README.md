@@ -14,6 +14,13 @@ Spreadsheets are incredibly expressive, but:
 
 CalcDown makes the **semantic model** (names, types, formulas, views) the source of truth in plain text.
 
+## The killer feature: semantic tooling
+
+The evaluator in this repo is intentionally small; the most “shipped-feeling” part today is the **Git-native tooling**:
+
+- **Canonical formatting** (`make fmt`, `tools/fmt_calcdown.js`): normalizes CalcDown documents and **sorts inline JSONL rows by `primaryKey`** (with stable key ordering). If two people edit different rows, diffs are smaller and merge conflicts are less likely.
+- **Semantic diffs** (`make diff`, `tools/calcdown.js diff`): compares the **parsed model** (inputs/tables/nodes/views), not just raw Markdown lines. Diffs point at “what changed” (e.g. a node expression or table schema), and can include **row-level changes by primary key** when row data is available.
+
 ## What
 
 A CalcDown project is one or more Markdown documents (recommended extension: `.calc.md`) with fenced blocks:
