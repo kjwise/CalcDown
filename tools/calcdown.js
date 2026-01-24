@@ -21,7 +21,7 @@ function usage() {
     "Notes:",
     "  - validate loads front matter `include` recursively (comma-separated).",
     "  - validate verifies external data sources (data.source + data.hash).",
-    "  - validate can also check a lock file (--lock).",
+    "  - validate can also check a lock file (--lock) or manifest.lock.",
     "  - lock writes a deterministic lock file for docs + external data sources.",
     "  - fmt delegates to tools/fmt_calcdown.js.",
   ].join("\n");
@@ -523,6 +523,7 @@ async function checkLock({ lockPath, docs, merged, tableOrigin }) {
 }
 
 async function cmdValidate(entry, opts = {}) {
+  const resolved = await resolveEntry(entry);
   const docs = await loadProject(entry);
   const merged = mergeProject(docs);
 
@@ -532,7 +533,7 @@ async function cmdValidate(entry, opts = {}) {
   const overrides = Object.create(null);
   for (const t of merged.program.tables) {
     if (!t.source) continue;
-    const origin = tableOrigin.get(t.name) ?? entry;
+    const origin = tableOrigin.get(t.name) ?? resolved.entryAbs;
     const loaded = await loadExternalTable(t, origin);
     messages.push(...loaded.messages);
     if (loaded.rows) overrides[t.name] = loaded.rows;
@@ -597,13 +598,15 @@ async function cmdValidate(entry, opts = {}) {
   }
 
   const summary = {
-    entry: path.resolve(entry),
+    entry: projectRelative(resolved.entryAbs),
+    ...(resolved.manifestAbs ? { manifest: projectRelative(resolved.manifestAbs) } : {}),
     documents: docs.map((d) => path.relative(process.cwd(), d.file)),
     errors: messages.filter((m) => m && typeof m === "object" && m.severity === "error").length,
     warnings: messages.filter((m) => m && typeof m === "object" && m.severity === "warning").length,
   };
 
-  const lockPath = typeof opts.lockPath === "string" && opts.lockPath.trim() ? opts.lockPath.trim() : null;
+  const lockPathRaw = typeof opts.lockPath === "string" && opts.lockPath.trim() ? opts.lockPath.trim() : null;
+  const lockPath = lockPathRaw ?? resolved.lockAbs;
   if (lockPath) {
     const lockRes = await checkLock({ lockPath, docs, merged, tableOrigin });
     messages.push(...lockRes.messages);
@@ -941,10 +944,59 @@ async function cmdExport(entryArg, opts = {}) {
     });
   }
 
-  const viewsRes = validateViewsFromBlocks(merged.program.blocks);
-  messages.push(...viewsRes.messages);
+  const viewEntries = [];
+  for (const doc of docs) {
+    const res = validateViewsFromBlocks(doc.parsed.program.blocks);
+    messages.push(...res.messages.map((m) => ({ ...m, file: doc.file })));
+    for (const v of res.views) {
+      viewEntries.push({ view: v, file: doc.file });
+    }
+  }
 
-  const lockPath = typeof opts.lockPath === "string" && opts.lockPath.trim() ? opts.lockPath.trim() : null;
+  // Cross-file checks: duplicate ids and unknown sources.
+  const viewOrigins = new Map();
+  const viewsOut = [];
+  for (const entry of viewEntries) {
+    const v = entry.view;
+    const origin = { file: entry.file, line: v.line };
+
+    const prev = viewOrigins.get(v.id);
+    if (prev) {
+      messages.push({
+        severity: "error",
+        code: "CD_VIEW_DUPLICATE_ID",
+        message: `Duplicate view id across project: ${v.id} (also defined in ${prev.file}:${prev.line})`,
+        file: origin.file,
+        line: origin.line,
+        blockLang: "view",
+        nodeName: v.id,
+      });
+      continue;
+    }
+    viewOrigins.set(v.id, origin);
+
+    if (v.type === "table" || v.type === "chart") {
+      const src = v.source;
+      const known =
+        merged.program.tables.some((t) => t.name === src) || merged.program.nodes.some((n) => n.name === src);
+      if (!known) {
+        messages.push({
+          severity: "error",
+          code: "CD_VIEW_UNKNOWN_SOURCE",
+          message: `View source does not exist: ${src}`,
+          file: origin.file,
+          line: origin.line,
+          blockLang: "view",
+          nodeName: v.id,
+        });
+      }
+    }
+
+    viewsOut.push(v);
+  }
+
+  const lockPathRaw = typeof opts.lockPath === "string" && opts.lockPath.trim() ? opts.lockPath.trim() : null;
+  const lockPath = lockPathRaw ?? resolved.lockAbs;
   if (lockPath) {
     const lockRes = await checkLock({ lockPath, docs, merged, tableOrigin });
     messages.push(...lockRes.messages);
@@ -961,7 +1013,7 @@ async function cmdExport(entryArg, opts = {}) {
   const nodes = Object.create(null);
   for (const n of merged.program.nodes) nodes[n.name] = values[n.name];
 
-  const views = viewsRes.views.map((v) => {
+  const views = viewsOut.map((v) => {
     const out = Object.create(null);
     for (const [k, val] of Object.entries(v)) {
       if (k === "line") continue;
@@ -1020,7 +1072,7 @@ async function main() {
 
   if (cmd === "validate") {
     const entry = args[1];
-    if (!entry) throw new Error("validate: missing <entry.calc.md>");
+    if (!entry) throw new Error("validate: missing <entry.calc.md|calcdown.json>");
     const lockIdx = args.indexOf("--lock");
     const lockPath = lockIdx !== -1 ? args[lockIdx + 1] : null;
     await cmdValidate(entry, { lockPath });

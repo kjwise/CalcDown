@@ -147,3 +147,85 @@ test("diff includes tableRows by primaryKey", async () => {
   assert.deepEqual(out.diff.tableRows.items.changedKeys.i1, ["qty"]);
 });
 
+test("manifest.lock is honored by validate/export and validate summary reports resolved entry", async () => {
+  const root = repoRoot();
+  const tool = path.join(root, "tools", "calcdown.js");
+
+  const dir = await fs.mkdtemp(path.join(os.tmpdir(), "calcdown-manifest-"));
+  const manifestPath = path.join(dir, "calcdown.json");
+  const entry = path.join(dir, "entry.calc.md");
+  const csvPath = path.join(dir, "items.csv");
+  const lockPath = path.join(dir, "calcdown.lock.json");
+
+  const csv1 = `id,qty\nx,2\ny,3\n`;
+  await fs.writeFile(csvPath, csv1, "utf8");
+  const h1 = sha256Hex(csv1);
+
+  await fs.writeFile(
+    entry,
+    `---\ncalcdown: 0.6\n---\n\n\`\`\`data\nname: items\nprimaryKey: id\nsource: ./items.csv\nformat: csv\nhash: sha256:${h1}\ncolumns:\n  id: string\n  qty: integer\n---\n# external\n\`\`\`\n\n\`\`\`calc\nconst total = std.table.sum(items, \"qty\");\n\`\`\`\n`,
+    "utf8"
+  );
+
+  await fs.writeFile(
+    manifestPath,
+    JSON.stringify({ calcdown: "0.6", entry: "./entry.calc.md", lock: "./calcdown.lock.json" }, null, 2),
+    "utf8"
+  );
+
+  const lockRes = runNode(tool, ["lock", manifestPath, lockPath]);
+  assert.equal(lockRes.status, 0, lockRes.stderr || lockRes.stdout || "lock (manifest) exited non-zero");
+
+  const okValidate = runNode(tool, ["validate", manifestPath]);
+  assert.equal(okValidate.status, 0, okValidate.stderr || okValidate.stdout || "validate(manifest) should succeed");
+  const okPayload = JSON.parse(okValidate.stdout);
+  assert.ok(typeof okPayload.summary.entry === "string");
+  assert.ok(okPayload.summary.entry.endsWith("entry.calc.md"), "validate summary.entry should be the resolved entry doc");
+  assert.ok(!okPayload.summary.entry.endsWith("calcdown.json"), "validate summary.entry should not be the manifest path");
+
+  const okExport = runNode(tool, ["export", manifestPath]);
+  assert.equal(okExport.status, 0, okExport.stderr || okExport.stdout || "export(manifest) should succeed");
+
+  // Drift the project after lock creation.
+  const csv2 = `id,qty\nx,2\ny,4\n`;
+  await fs.writeFile(csvPath, csv2, "utf8");
+  const h2 = sha256Hex(csv2);
+
+  const driftEntry = `${await fs.readFile(entry, "utf8")}\n# drift\n`.replace(`sha256:${h1}`, `sha256:${h2}`);
+  await fs.writeFile(entry, driftEntry, "utf8");
+
+  const badValidate = runNode(tool, ["validate", manifestPath]);
+  assert.equal(badValidate.status, 1, "validate(manifest) should fail on drift due to manifest.lock");
+  const badValidatePayload = JSON.parse(badValidate.stdout);
+  const validateCodes = new Set(badValidatePayload.messages.map((m) => m.code).filter(Boolean));
+  assert.ok(validateCodes.has("CD_LOCK_DOC_HASH_MISMATCH"), "expected doc hash mismatch via manifest.lock");
+  assert.ok(validateCodes.has("CD_LOCK_SOURCE_HASH_MISMATCH"), "expected data hash mismatch via manifest.lock");
+
+  const badExport = runNode(tool, ["export", manifestPath]);
+  assert.equal(badExport.status, 1, "export(manifest) should fail on drift due to manifest.lock");
+  const badExportPayload = JSON.parse(badExport.stdout);
+  const exportCodes = new Set(badExportPayload.messages.map((m) => m.code).filter(Boolean));
+  assert.ok(exportCodes.has("CD_LOCK_DOC_HASH_MISMATCH"), "expected export to enforce manifest.lock (doc mismatch)");
+  assert.ok(exportCodes.has("CD_LOCK_SOURCE_HASH_MISMATCH"), "expected export to enforce manifest.lock (data mismatch)");
+});
+
+test("export validates view sources", async () => {
+  const root = repoRoot();
+  const tool = path.join(root, "tools", "calcdown.js");
+
+  const dir = await fs.mkdtemp(path.join(os.tmpdir(), "calcdown-export-views-"));
+  const entry = path.join(dir, "entry.calc.md");
+
+  await fs.writeFile(
+    entry,
+    `---\ncalcdown: 0.6\n---\n\n\`\`\`calc\nconst x = 1;\n\`\`\`\n\n\`\`\`view\n{\n  \"id\": \"t\",\n  \"type\": \"table\",\n  \"library\": \"calcdown\",\n  \"source\": \"missing_table\",\n  \"spec\": { \"title\": \"Broken\" }\n}\n\`\`\`\n`,
+    "utf8"
+  );
+
+  const res = runNode(tool, ["export", entry]);
+  assert.equal(res.status, 1, "export should fail when views reference missing sources");
+
+  const out = JSON.parse(res.stdout);
+  const codes = new Set(out.messages.map((m) => m.code).filter(Boolean));
+  assert.ok(codes.has("CD_VIEW_UNKNOWN_SOURCE"));
+});

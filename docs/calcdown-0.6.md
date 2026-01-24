@@ -99,7 +99,7 @@ Optional keys:
 - `include` (string|array, optional): additional `.calc.md` documents to load:
   - if a string, it is treated as a comma-separated list
   - if an array, it MUST be an array of strings
-- `lock` (string, optional): path to a lockfile to check during validation.
+- `lock` (string, optional): path to a lockfile to check during validation and export.
 - `results` (string, optional): UI hint equivalent to document front matter `results`.
 
 Path resolution rules:
@@ -110,6 +110,7 @@ Project loading rules:
 
 - When a manifest is used, implementations MUST load `entry` first, then recursively load `include` from document front matter (§2.2), then load any manifest-level `include` documents.
 - Duplicate document loads MUST be de-duplicated by absolute path.
+- If `lock` is present and the project is loaded via the manifest, implementations MUST treat it as the default lockfile for `calcdown validate` and `calcdown export` (unless an explicit `--lock` is provided).
 
 ### 2.4 Lockfile (`calcdown.lock.json`)
 
@@ -343,6 +344,8 @@ Implementations SHOULD provide `calcdown validate` that:
 
 If `--lock <path>` is provided, `calcdown validate` MUST also enforce lock semantics (§2.4).
 
+If `--lock` is not provided and the project is loaded via a manifest with `lock`, `calcdown validate` MUST enforce that lockfile.
+
 ### 8.3 `calcdown lock`
 
 Implementations SHOULD provide `calcdown lock` that:
@@ -385,6 +388,8 @@ Implementations SHOULD provide `calcdown export` that materializes a project int
 CalcDown ships a JSON Schema for the export output:
 
 - `schemas/calcdown-export-0.6.schema.json`
+
+If `--lock <path>` is provided, `calcdown export` MUST enforce lock semantics (§2.4). If the project is loaded via a manifest with `lock` and `--lock` is not provided, `calcdown export` MUST enforce that lockfile.
 
 ## 9) Safety model (0.6)
 
