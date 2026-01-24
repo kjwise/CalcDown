@@ -48,6 +48,113 @@ function assertFiniteResult(v: number): number {
   return v;
 }
 
+function concatPartToString(v: unknown, label: string): string {
+  if (typeof v === "string") return v;
+  if (typeof v === "number") {
+    if (!Number.isFinite(v)) throw new Error(`${label} expects finite number`);
+    return String(v);
+  }
+  throw new Error(`${label} expects string or finite number`);
+}
+
+function evalUnaryMinus(v: unknown, label: string): unknown {
+  if (!Array.isArray(v)) {
+    return assertFiniteResult(-assertFiniteNumber(v, label));
+  }
+  const out = new Array<number>(v.length);
+  for (let i = 0; i < v.length; i++) {
+    out[i] = assertFiniteResult(-assertFiniteNumber(v[i], `${label} [index ${i}]`));
+  }
+  return out;
+}
+
+function evalConcat(a: unknown, b: unknown, label: string): unknown {
+  const aIsArray = Array.isArray(a);
+  const bIsArray = Array.isArray(b);
+
+  if (!aIsArray && !bIsArray) {
+    return concatPartToString(a, label) + concatPartToString(b, label);
+  }
+
+  if (aIsArray && bIsArray) {
+    const aa = a as unknown[];
+    const bb = b as unknown[];
+    if (aa.length !== bb.length) {
+      throw new Error(`${label} vector length mismatch: ${aa.length} vs ${bb.length}`);
+    }
+    const out = new Array<string>(aa.length);
+    for (let i = 0; i < aa.length; i++) {
+      out[i] = concatPartToString(aa[i], `${label} [index ${i}]`) + concatPartToString(bb[i], `${label} [index ${i}]`);
+    }
+    return out;
+  }
+
+  if (aIsArray) {
+    const aa = a as unknown[];
+    const sb = concatPartToString(b, `${label} (scalar right)`);
+    const out = new Array<string>(aa.length);
+    for (let i = 0; i < aa.length; i++) {
+      out[i] = concatPartToString(aa[i], `${label} [index ${i}]`) + sb;
+    }
+    return out;
+  }
+
+  const sa = concatPartToString(a, `${label} (scalar left)`);
+  const bb = b as unknown[];
+  const out = new Array<string>(bb.length);
+  for (let i = 0; i < bb.length; i++) {
+    out[i] = sa + concatPartToString(bb[i], `${label} [index ${i}]`);
+  }
+  return out;
+}
+
+function evalNumericBinary(
+  op: string,
+  a: unknown,
+  b: unknown,
+  scalarFn: (x: number, y: number) => number
+): unknown {
+  const aIsArray = Array.isArray(a);
+  const bIsArray = Array.isArray(b);
+
+  if (!aIsArray && !bIsArray) {
+    return assertFiniteResult(scalarFn(assertFiniteNumber(a, `Binary '${op}'`), assertFiniteNumber(b, `Binary '${op}'`)));
+  }
+
+  if (aIsArray && bIsArray) {
+    const aa = a as unknown[];
+    const bb = b as unknown[];
+    if (aa.length !== bb.length) {
+      throw new Error(`Vector length mismatch: ${aa.length} vs ${bb.length}`);
+    }
+    const out = new Array<number>(aa.length);
+    for (let i = 0; i < aa.length; i++) {
+      out[i] = assertFiniteResult(
+        scalarFn(assertFiniteNumber(aa[i], `Binary '${op}' [index ${i}]`), assertFiniteNumber(bb[i], `Binary '${op}' [index ${i}]`))
+      );
+    }
+    return out;
+  }
+
+  if (aIsArray) {
+    const aa = a as unknown[];
+    const sb = assertFiniteNumber(b, `Binary '${op}' (scalar right)`);
+    const out = new Array<number>(aa.length);
+    for (let i = 0; i < aa.length; i++) {
+      out[i] = assertFiniteResult(scalarFn(assertFiniteNumber(aa[i], `Binary '${op}' [index ${i}]`), sb));
+    }
+    return out;
+  }
+
+  const sa = assertFiniteNumber(a, `Binary '${op}' (scalar left)`);
+  const bb = b as unknown[];
+  const out = new Array<number>(bb.length);
+  for (let i = 0; i < bb.length; i++) {
+    out[i] = assertFiniteResult(scalarFn(sa, assertFiniteNumber(bb[i], `Binary '${op}' [index ${i}]`)));
+  }
+  return out;
+}
+
 function collectStdFunctions(std: unknown): Set<Function> {
   const out = new Set<Function>();
   const seen = new WeakSet<object>();
@@ -91,37 +198,56 @@ function evalExpr(expr: Expr, env: Record<string, unknown>, ctx: EvalContext): u
     }
     case "unary": {
       const v = evalExpr(expr.expr, env, ctx);
-      const n = assertFiniteNumber(v, "Unary '-'");
-      return assertFiniteResult(-n);
+      return evalUnaryMinus(v, "Unary '-'");
     }
     case "binary": {
       const a = evalExpr(expr.left, env, ctx);
       const b = evalExpr(expr.right, env, ctx);
-      const na = assertFiniteNumber(a, `Binary '${expr.op}'`);
-      const nb = assertFiniteNumber(b, `Binary '${expr.op}'`);
       switch (expr.op) {
+        case "&":
+          return evalConcat(a, b, "Binary '&'");
         case "+":
-          return assertFiniteResult(na + nb);
+          return evalNumericBinary("+", a, b, (x, y) => x + y);
         case "-":
-          return assertFiniteResult(na - nb);
+          return evalNumericBinary("-", a, b, (x, y) => x - y);
         case "*":
-          return assertFiniteResult(na * nb);
+          return evalNumericBinary("*", a, b, (x, y) => x * y);
         case "/":
-          if (nb === 0) throw new Error("Division by zero");
-          return assertFiniteResult(na / nb);
+          return evalNumericBinary("/", a, b, (x, y) => {
+            if (y === 0) throw new Error("Division by zero");
+            return x / y;
+          });
         case "**":
-          return assertFiniteResult(na ** nb);
+          return evalNumericBinary("**", a, b, (x, y) => x ** y);
         default:
           throw new Error("Unsupported binary op");
       }
     }
     case "member": {
       const obj = evalExpr(expr.object, env, ctx);
-      return safeGet(obj, expr.property);
+      const prop = expr.property;
+      if (Array.isArray(obj)) {
+        if (Object.prototype.hasOwnProperty.call(obj, prop)) return safeGet(obj, prop);
+        if (prop in Array.prototype) {
+          // Preserve "own properties only" semantics for arrays to avoid leaking mutators like `.push`.
+          throw new Error(`Unknown property: ${prop}`);
+        }
+        const out = new Array<unknown>(obj.length);
+        for (let i = 0; i < obj.length; i++) {
+          try {
+            out[i] = safeGet(obj[i], prop);
+          } catch (err) {
+            const msg = err instanceof Error ? err.message : String(err);
+            throw new Error(`Row ${i}: ${msg}`);
+          }
+        }
+        return out;
+      }
+      return safeGet(obj, prop);
     }
     case "call": {
       if (!isStdMemberPath(expr.callee)) {
-        throw new Error("Only std.* function calls are supported in the 0.5 evaluator");
+        throw new Error("Only std.* function calls are supported in this evaluator");
       }
       const fn = evalExpr(expr.callee, env, ctx);
       if (typeof fn !== "function") throw new Error("Callee is not a function");
@@ -160,10 +286,10 @@ function evalExpr(expr: Expr, env: Record<string, unknown>, ctx: EvalContext): u
 }
 
 function codeForEvalError(message: string): string {
-  if (message === "Division by zero") return "CD_CALC_DIV_ZERO";
-  if (message === "Non-finite numeric result") return "CD_CALC_NONFINITE";
+  if (message === "Division by zero" || message.startsWith("Division by zero")) return "CD_CALC_DIV_ZERO";
+  if (message === "Non-finite numeric result" || message.startsWith("Non-finite numeric result")) return "CD_CALC_NONFINITE";
   if (message.startsWith("Unknown identifier:")) return "CD_CALC_UNKNOWN_IDENTIFIER";
-  if (message.startsWith("Unknown property:")) return "CD_CALC_UNKNOWN_PROPERTY";
+  if (message.startsWith("Unknown property:") || message.includes("Unknown property:")) return "CD_CALC_UNKNOWN_PROPERTY";
   if (message.startsWith("Upstream error in")) return "CD_CALC_UPSTREAM_ERROR";
   if (message.includes("Only std.* function calls are supported")) return "CD_CALC_UNSAFE_CALL";
   return "CD_CALC_EVAL";

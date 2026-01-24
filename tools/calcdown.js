@@ -921,7 +921,7 @@ async function cmdLock(entryArg, outPath) {
   dataSources.sort((a, b) => `${a.table}::${a.source}`.localeCompare(`${b.table}::${b.source}`));
 
   const lock = {
-    calcdown: "0.6",
+    calcdown: "0.7",
     entry: projectRelative(resolved.entryAbs),
     ...(resolved.manifestAbs ? { manifest: projectRelative(resolved.manifestAbs) } : {}),
     documents,
@@ -1049,7 +1049,7 @@ async function cmdExport(entryArg, opts = {}) {
   });
 
   const out = {
-    calcdown: "0.6",
+    calcdown: "0.7",
     entry: projectRelative(resolved.entryAbs),
     ...(resolved.manifestAbs ? { manifest: projectRelative(resolved.manifestAbs) } : {}),
     documents: docs.map((d) => projectRelative(d.file)),

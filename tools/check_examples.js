@@ -265,7 +265,7 @@ async function main() {
   const lines = [];
   lines.push("# Compatibility checklist (examples)");
   lines.push("");
-  lines.push("This file tracks whether each `docs/examples/*.calc.md` example parses and evaluates under CalcDown 0.6.");
+  lines.push("This file tracks whether each `docs/examples/*.calc.md` example parses and evaluates under CalcDown 0.7.");
   lines.push("");
   lines.push("Legend: ✓ works, ⚠ partial (warnings), ✗ broken (errors)");
   lines.push("");

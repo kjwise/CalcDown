@@ -1,5 +1,8 @@
 # CalcDown Standard Library 0.6 (Draft)
 
+**This draft is SUPERSEDED**  
+Current version → [stdlib 0.7](stdlib-0.7.md) — [CalcDown 0.7](calcdown-0.7.md)
+
 Status: **Draft / experimental**. This document specifies the standard library object available as `std` when evaluating CalcScript expressions in CalcDown 0.6.
 
 See also: `docs/calcdown-0.6.md` (the file format, project files, execution model, and tooling).
@@ -443,6 +446,44 @@ Excel-compatible payment amount for a loan (PMT).
 
 Throw a deterministic model error if `condition` is falsy.
 
+### 3.8 `std.text`
+
+#### `std.text.concat(...parts)`
+
+Concatenate text and numbers deterministically. Scalars broadcast over arrays.
+
+Signature:
+
+```ts
+concat(...parts: Array<string | number | Array<string | number>>): string | string[]
+```
+
+Rules:
+
+- Each `part` MUST be either:
+  - a `string`
+  - a finite `number`
+  - an array of `string | finite number`
+- If any `part` is an array, then all array parts MUST have the same length. Scalars MUST be broadcast across that length.
+- The return value MUST be:
+  - a `string` (if all parts are scalars), or
+  - a `string[]` (if any part is an array)
+
+#### `std.text.repeat(value, count)`
+
+Repeat a string (or each string in an array).
+
+Signature:
+
+```ts
+repeat(value: string | string[], count: number): string | string[]
+```
+
+Rules:
+
+- `count` MUST be a non-negative integer.
+- If `value` is an array, it MUST be an array of strings.
+
 ## 4) Recommended APIs (optional, but expected soon)
 
 - `std.lookup.interpolate`
@@ -453,4 +494,5 @@ Throw a deterministic model error if `condition` is falsy.
 
 - Add `std.date.now()` and `std.date.today()` (evaluation-context based).
 - Add `std.math.abs`, `std.math.sign`, `std.math.sqrt`, `std.math.exp`, `std.math.ln`, `std.math.log10`, and `std.math.PI`.
+- Add `std.text.concat(...)` and `std.text.repeat(...)`.
 - 0.6 otherwise focuses on project composition, lockfiles, and tooling in `docs/calcdown-0.6.md`.

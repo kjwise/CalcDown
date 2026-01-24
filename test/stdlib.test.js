@@ -42,7 +42,7 @@ test("std.math.mean / minOf / maxOf / round", () => {
   assert.throws(() => std.math.round(1, 99), /round: digits out of range/);
 });
 
-test("std.math.abs / sign / sqrt / exp / ln / log10 / PI", () => {
+test("std.math.abs / sign / sqrt / exp / ln / log10 / trig / helpers / constants", () => {
   assert.equal(std.math.abs(-2.5), 2.5);
   assert.equal(std.math.abs(0), 0);
   assert.throws(() => std.math.abs(Number.NaN), /abs: x must be finite/);
@@ -64,7 +64,78 @@ test("std.math.abs / sign / sqrt / exp / ln / log10 / PI", () => {
   approxEqual(std.math.log10(1000), 3);
   assert.throws(() => std.math.log10(0), /Non-finite numeric result/);
 
+  approxEqual(std.math.sin(0), 0);
+  approxEqual(std.math.cos(0), 1);
+  approxEqual(std.math.tan(0), 0);
+
+  approxEqual(std.math.asin(0), 0);
+  approxEqual(std.math.acos(1), 0);
+  approxEqual(std.math.atan(0), 0);
+  approxEqual(std.math.atan2(0, 1), 0);
+  assert.throws(() => std.math.asin(2), /Non-finite numeric result/);
+
+  approxEqual(std.math.sinh(0), 0);
+  approxEqual(std.math.cosh(0), 1);
+  approxEqual(std.math.tanh(0), 0);
+
+  assert.equal(std.math.ceil(1.2), 2);
+  assert.equal(std.math.floor(1.8), 1);
+  assert.equal(std.math.trunc(1.8), 1);
+  assert.equal(std.math.trunc(-1.8), -1);
+
+  assert.equal(std.math.pow(2, 3), 8);
+  assert.throws(() => std.math.pow(1e308, 2), /Non-finite numeric result/);
+
+  approxEqual(std.math.E, Math.E);
   approxEqual(std.math.PI, Math.PI);
+
+  // Error branches
+  assert.throws(() => std.math.sin(Number.NaN), /sin: x must be finite/);
+  assert.throws(() => std.math.acos(2), /Non-finite numeric result/);
+  assert.throws(() => std.math.atan2(0, Number.NaN), /atan2: x must be finite/);
+  assert.throws(() => std.math.cosh(1000), /Non-finite numeric result/);
+  assert.throws(() => std.math.ceil(Number.NaN), /ceil: x must be finite/);
+
+  // Type-check branches (typeof !== "number")
+  for (const fn of [
+    "sin",
+    "cos",
+    "tan",
+    "asin",
+    "acos",
+    "atan",
+    "sinh",
+    "cosh",
+    "tanh",
+    "ceil",
+    "floor",
+    "trunc",
+  ]) {
+    assert.throws(() => std.math[fn]("x"), new RegExp(`${fn}: x must be finite`));
+  }
+  assert.throws(() => std.math.atan2("x", 0), /atan2: y must be finite/);
+  assert.throws(() => std.math.pow("x", 2), /pow: base must be finite/);
+  assert.throws(() => std.math.pow(2, "x"), /pow: exp must be finite/);
+});
+
+test("std.text.concat / repeat", () => {
+  assert.equal(std.text.concat("A", 1, "B"), "A1B");
+  assert.deepEqual(std.text.concat("A", [1, 2, 3]), ["A1", "A2", "A3"]);
+  assert.deepEqual(std.text.concat(["A", "B"], [10, 20]), ["A10", "B20"]);
+  assert.deepEqual(std.text.concat(["A", "B"], ":", [10, 20]), ["A:10", "B:20"]);
+
+  assert.throws(() => std.text.concat([1, 2], [3]), /concat: array length mismatch/);
+  assert.throws(() => std.text.concat(Symbol("x")), /concat: expected string or finite number/);
+  assert.throws(() => std.text.concat([Number.POSITIVE_INFINITY]), /concat \[index 0\]: expected finite numbers/);
+
+  assert.equal(std.text.repeat("ab", 3), "ababab");
+  assert.equal(std.text.repeat("x", 0), "");
+  assert.deepEqual(std.text.repeat(["a", "bb"], 2), ["aa", "bbbb"]);
+
+  assert.throws(() => std.text.repeat("x", -1), /repeat: count must be a non-negative integer/);
+  assert.throws(() => std.text.repeat("x", 1.5), /repeat: count must be a non-negative integer/);
+  assert.throws(() => std.text.repeat(123, 2), /repeat: expected string or string array/);
+  assert.throws(() => std.text.repeat(["ok", 1], 2), /repeat: expected string array/);
 });
 
 test("std.data.sequence", () => {

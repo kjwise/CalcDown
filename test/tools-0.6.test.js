@@ -27,7 +27,7 @@ test("fmt canonicalizes JSONL rows by primaryKey", async () => {
   const dir = await fs.mkdtemp(path.join(os.tmpdir(), "calcdown-fmt-jsonl-"));
   const file = path.join(dir, "example.calc.md");
 
-  const before = `---\ncalcdown: 0.6\n---\n\n\`\`\`data\nname: t\nprimaryKey: id\ncolumns:\n  id: string\n  n: number\n---\n{\"id\":\"b\",\"n\":1.20}\n\n{\"id\":\"a\",\"n\":2}\n\`\`\`\n`;
+  const before = `---\ncalcdown: 0.7\n---\n\n\`\`\`data\nname: t\nprimaryKey: id\ncolumns:\n  id: string\n  n: number\n---\n{\"id\":\"b\",\"n\":1.20}\n\n{\"id\":\"a\",\"n\":2}\n\`\`\`\n`;
   await fs.writeFile(file, before, "utf8");
 
   const res = runNode(fmtTool, [file]);
@@ -59,13 +59,13 @@ test("lock + validate --lock detects doc/data drift", async () => {
 
   await fs.writeFile(
     child,
-    `---\ncalcdown: 0.6\n---\n\n\`\`\`inputs\nk : integer = 1\n\`\`\`\n`,
+    `---\ncalcdown: 0.7\n---\n\n\`\`\`inputs\nk : integer = 1\n\`\`\`\n`,
     "utf8"
   );
 
   await fs.writeFile(
     entry,
-    `---\ncalcdown: 0.6\ninclude:\n  - ./child.calc.md\n---\n\n\`\`\`data\nname: items\nprimaryKey: id\nsource: ./items.csv\nformat: csv\nhash: sha256:${h1}\ncolumns:\n  id: string\n  qty: integer\n---\n# external\n\`\`\`\n\n\`\`\`calc\nconst total = std.table.sum(items, \"qty\");\n\`\`\`\n`,
+    `---\ncalcdown: 0.7\ninclude:\n  - ./child.calc.md\n---\n\n\`\`\`data\nname: items\nprimaryKey: id\nsource: ./items.csv\nformat: csv\nhash: sha256:${h1}\ncolumns:\n  id: string\n  qty: integer\n---\n# external\n\`\`\`\n\n\`\`\`calc\nconst total = std.table.sum(items, \"qty\");\n\`\`\`\n`,
     "utf8"
   );
 
@@ -99,7 +99,7 @@ test("export omits view line numbers and includes values", async () => {
 
   await fs.writeFile(
     entry,
-    `---\ncalcdown: 0.6\n---\n\n\`\`\`inputs\na : integer = 2\nb : integer = 3\n\`\`\`\n\n\`\`\`calc\nconst sum = a + b;\n\`\`\`\n\n\`\`\`view\n{\n  \"id\": \"summary\",\n  \"type\": \"cards\",\n  \"library\": \"calcdown\",\n  \"spec\": { \"items\": [ { \"key\": \"sum\" } ] }\n}\n\`\`\`\n`,
+    `---\ncalcdown: 0.7\n---\n\n\`\`\`inputs\na : integer = 2\nb : integer = 3\n\`\`\`\n\n\`\`\`calc\nconst sum = a + b;\n\`\`\`\n\n\`\`\`view\n{\n  \"id\": \"summary\",\n  \"type\": \"cards\",\n  \"library\": \"calcdown\",\n  \"spec\": { \"items\": [ { \"key\": \"sum\" } ] }\n}\n\`\`\`\n`,
     "utf8"
   );
 
@@ -107,7 +107,7 @@ test("export omits view line numbers and includes values", async () => {
   assert.equal(res.status, 0, res.stderr || res.stdout || "export exited non-zero");
 
   const out = JSON.parse(res.stdout);
-  assert.equal(out.calcdown, "0.6");
+  assert.equal(out.calcdown, "0.7");
   assert.equal(out.values.inputs.a, 2);
   assert.equal(out.values.nodes.sum, 5);
   assert.equal(Array.isArray(out.views), true);
@@ -123,7 +123,7 @@ test("diff includes tableRows by primaryKey", async () => {
   const a = path.join(dir, "a.calc.md");
   const b = path.join(dir, "b.calc.md");
 
-  const base = `---\ncalcdown: 0.6\n---\n\n\`\`\`data\nname: items\nprimaryKey: id\ncolumns:\n  id: string\n  qty: integer\n---\n`;
+  const base = `---\ncalcdown: 0.7\n---\n\n\`\`\`data\nname: items\nprimaryKey: id\ncolumns:\n  id: string\n  qty: integer\n---\n`;
 
   await fs.writeFile(
     a,
@@ -163,13 +163,13 @@ test("manifest.lock is honored by validate/export and validate summary reports r
 
   await fs.writeFile(
     entry,
-    `---\ncalcdown: 0.6\n---\n\n\`\`\`data\nname: items\nprimaryKey: id\nsource: ./items.csv\nformat: csv\nhash: sha256:${h1}\ncolumns:\n  id: string\n  qty: integer\n---\n# external\n\`\`\`\n\n\`\`\`calc\nconst total = std.table.sum(items, \"qty\");\n\`\`\`\n`,
+    `---\ncalcdown: 0.7\n---\n\n\`\`\`data\nname: items\nprimaryKey: id\nsource: ./items.csv\nformat: csv\nhash: sha256:${h1}\ncolumns:\n  id: string\n  qty: integer\n---\n# external\n\`\`\`\n\n\`\`\`calc\nconst total = std.table.sum(items, \"qty\");\n\`\`\`\n`,
     "utf8"
   );
 
   await fs.writeFile(
     manifestPath,
-    JSON.stringify({ calcdown: "0.6", entry: "./entry.calc.md", lock: "./calcdown.lock.json" }, null, 2),
+    JSON.stringify({ calcdown: "0.7", entry: "./entry.calc.md", lock: "./calcdown.lock.json" }, null, 2),
     "utf8"
   );
 
@@ -218,7 +218,7 @@ test("export validates view sources", async () => {
 
   await fs.writeFile(
     entry,
-    `---\ncalcdown: 0.6\n---\n\n\`\`\`calc\nconst x = 1;\n\`\`\`\n\n\`\`\`view\n{\n  \"id\": \"t\",\n  \"type\": \"table\",\n  \"library\": \"calcdown\",\n  \"source\": \"missing_table\",\n  \"spec\": { \"title\": \"Broken\" }\n}\n\`\`\`\n`,
+    `---\ncalcdown: 0.7\n---\n\n\`\`\`calc\nconst x = 1;\n\`\`\`\n\n\`\`\`view\n{\n  \"id\": \"t\",\n  \"type\": \"table\",\n  \"library\": \"calcdown\",\n  \"source\": \"missing_table\",\n  \"spec\": { \"title\": \"Broken\" }\n}\n\`\`\`\n`,
     "utf8"
   );
 

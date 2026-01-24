@@ -1,0 +1,41 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "calcdown-lock-0.7.schema.json",
+  "title": "CalcDown 0.7 Lockfile (calcdown.lock.json)",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["calcdown", "entry", "documents"],
+  "properties": {
+    "calcdown": { "const": "0.7" },
+    "entry": { "type": "string", "minLength": 1 },
+    "manifest": { "type": "string", "minLength": 1 },
+    "documents": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["path", "sha256"],
+        "properties": {
+          "path": { "type": "string", "minLength": 1 },
+          "sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" }
+        }
+      }
+    },
+    "dataSources": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["table", "source", "format", "declaredHash", "sha256"],
+        "properties": {
+          "table": { "type": "string", "minLength": 1 },
+          "source": { "type": "string", "minLength": 1 },
+          "format": { "enum": ["csv", "json"] },
+          "declaredHash": { "type": "string", "pattern": "^sha256:[0-9a-fA-F]{64}$" },
+          "sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" }
+        }
+      }
+    }
+  }
+}

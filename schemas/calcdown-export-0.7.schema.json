@@ -1,0 +1,43 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "calcdown-export-0.7.schema.json",
+  "title": "CalcDown 0.7 Export Output",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["calcdown", "entry", "documents", "values", "views", "messages"],
+  "properties": {
+    "calcdown": { "const": "0.7" },
+    "entry": { "type": "string", "minLength": 1 },
+    "manifest": { "type": "string", "minLength": 1 },
+    "documents": { "type": "array", "items": { "type": "string", "minLength": 1 } },
+    "values": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["inputs", "tables", "nodes"],
+      "properties": {
+        "inputs": { "type": "object", "additionalProperties": true },
+        "tables": { "type": "object", "additionalProperties": true },
+        "nodes": { "type": "object", "additionalProperties": true }
+      }
+    },
+    "views": { "type": "array", "items": { "$ref": "calcdown-view-0.7.schema.json" } },
+    "messages": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": true,
+        "required": ["severity", "message"],
+        "properties": {
+          "severity": { "enum": ["error", "warning"] },
+          "code": { "type": "string" },
+          "message": { "type": "string" },
+          "file": { "type": "string" },
+          "line": { "type": "integer", "minimum": 1 },
+          "column": { "type": "integer", "minimum": 1 },
+          "blockLang": { "type": "string" },
+          "nodeName": { "type": "string" }
+        }
+      }
+    }
+  }
+}

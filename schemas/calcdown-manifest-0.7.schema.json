@@ -1,0 +1,22 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "calcdown-manifest-0.7.schema.json",
+  "title": "CalcDown 0.7 Manifest (calcdown.json)",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["entry"],
+  "properties": {
+    "calcdown": {
+      "oneOf": [{ "type": "string" }, { "type": "number" }]
+    },
+    "entry": { "type": "string", "minLength": 1 },
+    "include": {
+      "oneOf": [
+        { "type": "string" },
+        { "type": "array", "items": { "type": "string", "minLength": 1 } }
+      ]
+    },
+    "lock": { "type": "string", "minLength": 1 },
+    "results": { "type": "string" }
+  }
+}

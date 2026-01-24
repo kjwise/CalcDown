@@ -1,0 +1,51 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "calcdown-view-table-0.7.schema.json",
+  "title": "CalcDown 0.7 Table View",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["id", "type", "source", "spec"],
+  "properties": {
+    "id": { "type": "string", "minLength": 1 },
+    "type": { "const": "table" },
+    "library": { "type": "string", "const": "calcdown", "default": "calcdown" },
+    "source": { "type": "string", "minLength": 1 },
+    "spec": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "title": { "type": "string" },
+        "editable": { "type": "boolean", "default": false },
+        "limit": { "type": "integer", "minimum": 0 },
+        "columns": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["key"],
+            "properties": {
+              "key": { "type": "string", "minLength": 1 },
+              "label": { "type": "string" },
+              "format": {
+                "oneOf": [
+                  { "enum": ["number", "integer", "percent", "currency", "date"] },
+                  {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": ["kind"],
+                    "properties": {
+                      "kind": { "enum": ["number", "integer", "percent", "currency", "date"] },
+                      "digits": { "type": "integer", "minimum": 0, "maximum": 12 },
+                      "currency": { "type": "string", "minLength": 1 }
+                    }
+                  }
+                ]
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

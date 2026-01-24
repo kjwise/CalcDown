@@ -1,6 +1,6 @@
 ---
 title: Invoice (external data table)
-calcdown: 0.6
+calcdown: 0.7
 ---
 
 # Invoice (external data)
@@ -18,6 +18,7 @@ tax_rate : percent = 24.0
 ``` data
 name: items
 primaryKey: id
+sortBy: name
 source: ./data/items.csv
 format: csv
 hash: sha256:88fe3eb07c4a121919e4b28588abf0bde8d97cb45e63c0903d4126dafb797fec
@@ -41,7 +42,7 @@ const lines = std.table.map(items, (row) => ({
   line_total: row.qty * row.unit_price,
 }));
 
-const subtotal = std.table.sum(lines, "line_total");
+const subtotal = std.math.sum(items.qty * items.unit_price);
 const tax = subtotal * (tax_rate / 100);
 const total = subtotal + tax;
 ```

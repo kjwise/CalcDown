@@ -319,6 +319,30 @@ export function evaluateProgram(
 
   const runtimeStd = createStd({ currentDateTime });
 
+  // Optional runtime row ordering for tables.
+  // Storage is canonicalized by primaryKey via `calcdown fmt`; `sortBy` controls presentation order.
+  const stdDataSortBy = (runtimeStd as any)?.data?.sortBy;
+  if (typeof stdDataSortBy === "function") {
+    for (const t of program.tables) {
+      const key = t.sortBy;
+      if (!key) continue;
+      const rows = tables[t.name];
+      if (!Array.isArray(rows)) continue;
+      try {
+        tables[t.name] = stdDataSortBy(rows, key);
+      } catch (err) {
+        messages.push({
+          severity: "error",
+          code: "CD_DATA_SORTBY_RUNTIME",
+          message: err instanceof Error ? err.message : String(err),
+          line: t.line,
+          nodeName: t.name,
+          blockLang: "data",
+        });
+      }
+    }
+  }
+
   const evalRes = evaluateNodes(
     program.nodes,
     Object.assign(Object.create(null), inputs, tables),

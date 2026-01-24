@@ -31,7 +31,7 @@ function parseArrow(t: Tokenizer): Expr {
     }
   }
   t.reset(mark);
-  return parseAddSub(t);
+  return parseConcat(t);
 }
 
 function tryParseArrowParams(t: Tokenizer): string[] | null {
@@ -71,6 +71,20 @@ function tryParseArrowParams(t: Tokenizer): string[] | null {
     return params;
   }
   return null;
+}
+
+function parseConcat(t: Tokenizer): Expr {
+  let left = parseAddSub(t);
+  while (true) {
+    const tok = t.peek();
+    if (tok.type === "op" && tok.value === "&") {
+      t.next();
+      const right = parseAddSub(t);
+      left = { kind: "binary", op: tok.value, left, right };
+      continue;
+    }
+    return left;
+  }
 }
 
 function parseAddSub(t: Tokenizer): Expr {

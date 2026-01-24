@@ -1,6 +1,6 @@
 ---
 title: Simple cashflow (CalcDown example)
-calcdown: 0.6
+calcdown: 0.7
 ---
 
 # Simple cashflow
@@ -22,6 +22,7 @@ starting_balance : number = 2500
 ``` data
 name: cashflow
 primaryKey: id
+sortBy: month
 columns:
   id: string
   month: date

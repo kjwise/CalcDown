@@ -1,11 +1,8 @@
-# CalcDown 0.6 (Draft Specification)
-
-**This draft is SUPERSEDED**  
-Current version → [CalcDown 0.7](calcdown-0.7.md) — [stdlib 0.7](stdlib-0.7.md)
+# CalcDown 0.7 (Draft Specification)
 
 Status: **Draft / experimental**. CalcDown is a text-first, Git-friendly format for “spreadsheet-like” models: typed inputs and data, a deterministic compute graph, and declarative views.
 
-This document specifies **CalcDown 0.6** (the file format, project files, execution model, and expected tooling). The companion standard library is specified in `docs/stdlib-0.6.md`.
+This document specifies **CalcDown 0.7** (the file format, project files, execution model, and expected tooling). The companion standard library is specified in `docs/stdlib-0.7.md`.
 
 ## 0) Conventions
 
@@ -39,7 +36,7 @@ Non-goals (0.x):
 
 ## 2) Files
 
-CalcDown 0.6 defines:
+CalcDown 0.7 defines:
 
 - **Documents** (`.calc.md`) — the primary authoring format (§2.1)
 - An optional **manifest** (`calcdown.json`) — project composition (§2.3)
@@ -57,7 +54,7 @@ A CalcDown document is a UTF‑8 Markdown file (recommended extension: `.calc.md
 
 If present, front matter MUST be YAML and SHOULD include:
 
-- `calcdown`: the spec version (`0.6`)
+- `calcdown`: the spec version (`0.7`)
 - `title`: a human-readable title (optional)
 
 Front matter MAY include UI hints (non-normative, but recommended):
@@ -68,7 +65,7 @@ Front matter MAY include project composition:
 
 - `include`: additional `.calc.md` files (relative paths) to load as part of the project.
 
-`include` rules (0.6):
+`include` rules (0.7):
 
 - Implementations MUST accept `include` as either:
   - a comma-separated string, or
@@ -79,18 +76,18 @@ Front matter MAY include project composition:
 
 Version rules:
 
-- Implementations SHOULD accept `calcdown` as either a YAML number (`0.6`) or a string (`"0.6"`), but MUST treat it as an exact version identifier (not a range).
+- Implementations SHOULD accept `calcdown` as either a YAML number (`0.7`) or a string (`"0.7"`), but MUST treat it as an exact version identifier (not a range).
 - If `calcdown` is missing, implementations MAY assume the latest supported `0.x` version, but SHOULD emit a warning.
 
 ### 2.3 Project manifest (`calcdown.json`)
 
-CalcDown 0.6 standardizes an optional manifest file to describe a multi-document project without relying solely on per-document front matter.
+CalcDown 0.7 standardizes an optional manifest file to describe a multi-document project without relying solely on per-document front matter.
 
 The manifest MUST be JSON and MUST be a single JSON object.
 
 CalcDown ships a JSON Schema for the manifest:
 
-- `schemas/calcdown-manifest-0.6.schema.json`
+- `schemas/calcdown-manifest-0.7.schema.json`
 
 Required keys:
 
@@ -98,7 +95,7 @@ Required keys:
 
 Optional keys:
 
-- `calcdown` (string|number, optional): the spec version (recommended `"0.6"`).
+- `calcdown` (string|number, optional): the spec version (recommended `"0.7"`).
 - `include` (string|array, optional): additional `.calc.md` documents to load:
   - if a string, it is treated as a comma-separated list
   - if an array, it MUST be an array of strings
@@ -117,17 +114,17 @@ Project loading rules:
 
 ### 2.4 Lockfile (`calcdown.lock.json`)
 
-CalcDown 0.6 standardizes an optional lockfile to support reproducible review and CI checks.
+CalcDown 0.7 standardizes an optional lockfile to support reproducible review and CI checks.
 
 The lockfile MUST be JSON and MUST be a single JSON object.
 
 CalcDown ships a JSON Schema for the lockfile:
 
-- `schemas/calcdown-lock-0.6.schema.json`
+- `schemas/calcdown-lock-0.7.schema.json`
 
 Required keys:
 
-- `calcdown` (string, required): `"0.6"` (lockfile schema version).
+- `calcdown` (string, required): `"0.7"` (lockfile schema version).
 - `entry` (string, required): the resolved entry document path (project-relative or absolute).
 - `documents` (array, required): pinned document content hashes.
 
@@ -160,7 +157,7 @@ Lock semantics:
 
 ## 3) Blocks
 
-CalcDown 0.6 defines the following block types (by code-fence language tag):
+CalcDown 0.7 defines the following block types (by code-fence language tag):
 
 - `inputs` — typed parameters
 - `data` — tables (inline JSONL or external CSV/JSON sources)
@@ -208,7 +205,7 @@ Rules:
   - Inline JSON Lines (JSONL), one row per line (diff-friendly), or
   - An external source reference (CSV/JSON) with a content hash (diff-friendly “big data” story)
 
-#### 3.3.1 Header keys (0.6)
+#### 3.3.1 Header keys (0.7)
 
 Required:
 
@@ -221,6 +218,16 @@ Optional (external sources):
 - `source` (string, optional): a relative path or URL to load data from
 - `format` (string, optional): `"csv"` or `"json"` (if omitted, engines MAY infer from `source` extension)
 - `hash` (string, optional): content hash of the external data, in the form `sha256:<hex>`
+
+Optional (ordering):
+
+- `sortBy` (string, optional): a column name used to order rows deterministically after loading.
+
+Rules:
+
+- If `sortBy` is present, engines MUST order the in-memory row array by that column before evaluating dependent nodes.
+- Sorting MUST be stable (ties preserve prior order).
+- Missing values (`null`/`undefined`) MUST sort last.
 
 Availability to `calc`:
 
@@ -247,7 +254,7 @@ Rules:
 - Engines MUST load `source`, verify `hash`, then parse and coerce rows according to `columns`.
 - Engines MUST enforce `primaryKey` presence and uniqueness after loading.
 
-Hash rules (0.6):
+Hash rules (0.7):
 
 - `sha256:<hex>` is computed over the raw UTF‑8 bytes of the external file content.
 
@@ -269,7 +276,7 @@ Rules:
 - The only ambient global identifier is `std` (the standard library).
 - Calls MUST have a callee that is a member path rooted at `std` (e.g. `std.finance.pmt(...)`).
 
-CalcScript expressions (0.6) support:
+CalcScript expressions (0.7) support:
 
 - Literals: numbers, strings, booleans
 - Identifiers
@@ -277,9 +284,9 @@ CalcScript expressions (0.6) support:
 - Arrow functions (`(x) => x + 1`) for use as arguments to `std.*` APIs
 - Member access (`obj.key`) and calls (`std.math.sum(xs)`), subject to the safety rules above
 - Operators:
-  - Unary `-` (numeric)
-  - Binary numeric: `+`, `-`, `*`, `/`, `**`
-  - Binary text: `&` (deterministic concatenation)
+  - Unary `-` (numeric; scalar or array)
+  - Binary numeric: `+`, `-`, `*`, `/`, `**` (numeric; scalar/array broadcasting)
+  - Binary text: `&` (deterministic concatenation; scalar/array broadcasting)
 
 Operator precedence (highest → lowest):
 
@@ -289,7 +296,25 @@ Operator precedence (highest → lowest):
 4. `+` `-`
 5. `&`
 
-`&` rules (0.6):
+Vectorization rules (0.7):
+
+- Unary `-` MUST apply element-wise when its operand is an array.
+- For binary numeric operators (`+`, `-`, `*`, `/`, `**`):
+  - scalar ⨯ scalar → scalar
+  - array ⨯ array → array (element-wise; length mismatch is an error)
+  - array ⨯ scalar → array (broadcast scalar)
+  - scalar ⨯ array → array (broadcast scalar)
+- Numeric operators MUST throw if any operand (scalar or array element) is not a finite number.
+- Division by zero MUST be an error.
+
+Column projection (0.7):
+
+- For member access `obj.key`, if `obj` evaluates to an array and `key` is not an own-property on that array:
+  - If `key` is a standard `Array.prototype` property, access MUST fail (to preserve the safety model).
+  - Otherwise, the result MUST be an array obtained by projecting `key` from each element.
+  - Projection MUST fail if any element is not an object or does not have `key` as an own-property.
+
+`&` rules (0.7):
 
 - Operands MUST be either:
   - a `string`
@@ -310,7 +335,7 @@ Engines MUST accept JSON. Engines SHOULD accept YAML as a convenience. Documents
 
 ### 5.1 CalcDown view contract (`library: "calcdown"`)
 
-CalcDown 0.6 standardizes view types under `library: "calcdown"`:
+CalcDown 0.7 standardizes view types under `library: "calcdown"`:
 
 - `cards` — standardized results pane
 - `table` — standardized tabular renderer (optionally editable)
@@ -321,13 +346,13 @@ Engines MUST validate `library: "calcdown"` views and MUST apply defaults where 
 
 CalcDown ships JSON Schemas for these views:
 
-- `schemas/calcdown-view-0.6.schema.json`
-- `schemas/calcdown-view-cards-0.6.schema.json`
-- `schemas/calcdown-view-table-0.6.schema.json`
-- `schemas/calcdown-view-chart-0.6.schema.json`
-- `schemas/calcdown-view-layout-0.6.schema.json`
+- `schemas/calcdown-view-0.7.schema.json`
+- `schemas/calcdown-view-cards-0.7.schema.json`
+- `schemas/calcdown-view-table-0.7.schema.json`
+- `schemas/calcdown-view-chart-0.7.schema.json`
+- `schemas/calcdown-view-layout-0.7.schema.json`
 
-## 6) Types (0.6)
+## 6) Types (0.7)
 
 Scalar types (core):
 
@@ -421,13 +446,13 @@ Implementations SHOULD provide `calcdown export` that materializes a project int
 
 CalcDown ships a JSON Schema for the export output:
 
-- `schemas/calcdown-export-0.6.schema.json`
+- `schemas/calcdown-export-0.7.schema.json`
 
 If `--lock <path>` is provided, `calcdown export` MUST enforce lock semantics (§2.4). If the project is loaded via a manifest with `lock` and `--lock` is not provided, `calcdown export` MUST enforce that lockfile.
 
 Implementations MAY accept a runtime clock override for `std.date.now()` / `std.date.today()` (for example: `--date YYYY-MM-DD` or `--datetime ISO`).
 
-## 9) Safety model (0.6)
+## 9) Safety model (0.7)
 
 CalcDown execution MUST be deterministic by default:
 
@@ -440,9 +465,8 @@ Prototype-pollution defenses:
 - Engines MUST defensively block `__proto__`, `constructor`, and `prototype` in user-authored member access and object keys.
 - Engines SHOULD apply similar defenses when parsing YAML view blocks (reject or sanitize unsafe keys).
 
-## Appendix A) Changes from 0.5 → 0.6
+## Appendix A) Changes from 0.6 → 0.7
 
-- Adds a standardized project manifest (`calcdown.json`) and lockfile (`calcdown.lock.json`).
-- Expands `include` to allow YAML sequences in addition to comma-separated strings.
-- Makes `fmt` and `diff` expectations more explicit (deterministic JSONL ordering and row-level diffs by `primaryKey`).
-- Adds `calcdown export` and an export JSON schema.
+- Adds `data.sortBy` (deterministic runtime row ordering).
+- Adds CalcScript array column projection (`items.qty`) and numeric operator vectorization.
+- 0.7 otherwise refines and clarifies the 0.x spec and tooling expectations.

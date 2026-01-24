@@ -30,7 +30,7 @@ A CalcDown project is one or more Markdown documents (recommended extension: `.c
 - `calc` — CalcScript (sandboxed subset) defining computed nodes/tables
 - `view` — standardized, schema-validated views (`cards`, `table`, `chart`, `layout`)
 
-For multi-document projects, CalcDown 0.6 also defines:
+For multi-document projects, CalcDown 0.7 also defines:
 
 - `calcdown.json` — a project manifest (`entry`, optional `include`, optional `lock`)
 - `calcdown.lock.json` — a lockfile (document + external data hashes)
@@ -40,7 +40,7 @@ For multi-document projects, CalcDown 0.6 also defines:
 ````md
 ---
 title: Savings growth
-calcdown: 0.6
+calcdown: 0.7
 ---
 
 ``` inputs
@@ -74,10 +74,10 @@ const final_balance = std.data.last(balances);
 ## Docs
 
 - `PURPOSE.md` — project goals and thesis
-- `docs/calcdown-0.6.md` — **current** file format + project files + execution model
-- `docs/stdlib-0.6.md` — **current** standard library
+- `docs/calcdown-0.7.md` — **current** file format + project files + execution model
+- `docs/stdlib-0.7.md` — **current** standard library
 - `docs/examples/*.calc.md` — executable examples (use latest spec)
-- Archived drafts: `docs/calcdown-0.[12345].md`, `docs/stdlib-0.[12345].md`
+- Archived drafts: `docs/calcdown-0.[123456].md`, `docs/stdlib-0.[123456].md`
 - Agent guidance: `AGENTS.md` (plus scoped files in subfolders)
 
 ## Status

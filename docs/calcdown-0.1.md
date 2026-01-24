@@ -1,7 +1,7 @@
 # CalcDown 0.1 (Draft Specification)
 
 **This draft is SUPERSEDED.**  
-Current version → [CalcDown 0.6](calcdown-0.6.md) — [stdlib 0.6](stdlib-0.6.md)
+Current version → [CalcDown 0.7](calcdown-0.7.md) — [stdlib 0.7](stdlib-0.7.md)
 
 Status: **Draft / experimental**. This document describes an MVP-friendly, browser-first format for “spreadsheet-like” models as plain text.
 

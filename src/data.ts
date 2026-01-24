@@ -173,6 +173,7 @@ export function parseDataBlock(block: FencedCodeBlock): { table: DataTable | nul
 
   let name: string | null = null;
   let primaryKey: string | null = null;
+  let sortBy: string | null = null;
   let sourceUri: string | null = null;
   let sourceFormatRaw: string | null = null;
   let sourceHash: string | null = null;
@@ -204,6 +205,10 @@ export function parseDataBlock(block: FencedCodeBlock): { table: DataTable | nul
     }
     if (key === "primaryKey") {
       primaryKey = value.trim() || null;
+      continue;
+    }
+    if (key === "sortBy") {
+      sortBy = value.trim() || null;
       continue;
     }
     if (key === "source") {
@@ -309,6 +314,26 @@ export function parseDataBlock(block: FencedCodeBlock): { table: DataTable | nul
       line: block.fenceLine + 1,
       blockLang: block.lang,
       nodeName: primaryKey,
+    });
+  }
+
+  if (sortBy !== null && sortBy !== "" && !isIdent(sortBy)) {
+    messages.push({
+      severity: "error",
+      code: "CD_DATA_SORTBY_INVALID",
+      message: `Invalid sortBy column name: ${sortBy}`,
+      line: block.fenceLine + 1,
+      blockLang: block.lang,
+      nodeName: sortBy,
+    });
+  } else if (sortBy && Object.keys(columns).length > 0 && !(sortBy in columns)) {
+    messages.push({
+      severity: "warning",
+      code: "CD_DATA_SORTBY_UNKNOWN",
+      message: `sortBy column '${sortBy}' is not declared in columns`,
+      line: block.fenceLine + 1,
+      blockLang: block.lang,
+      nodeName: sortBy,
     });
   }
 
@@ -509,6 +534,7 @@ export function parseDataBlock(block: FencedCodeBlock): { table: DataTable | nul
     columns,
     rows,
     ...(source ? { source } : {}),
+    ...(sortBy ? { sortBy } : {}),
     line: block.fenceLine + 1,
   };
 

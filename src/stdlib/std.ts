@@ -42,6 +42,15 @@ function makeLookupIndex(keyColumn: string, map: Map<string, Record<string, unkn
   return Object.freeze(idx);
 }
 
+function textPartToString(v: unknown, label: string): string {
+  if (typeof v === "string") return v;
+  if (typeof v === "number") {
+    if (!Number.isFinite(v)) throw new Error(`${label}: expected finite numbers`);
+    return String(v);
+  }
+  throw new Error(`${label}: expected string or finite number`);
+}
+
 function pmt(rate: number, nper: number, pv: number, fv = 0, type = 0): number {
   if (!Number.isFinite(rate) || !Number.isFinite(nper) || !Number.isFinite(pv) || !Number.isFinite(fv)) {
     throw new Error("pmt: invalid arguments");
@@ -160,8 +169,139 @@ export function createStd(context?: StdRuntimeContext): Readonly<Record<string, 
 	      if (!Number.isFinite(y)) throw new Error("Non-finite numeric result");
 	      return y;
 	    },
+      sin(x: number): number {
+        if (typeof x !== "number" || !Number.isFinite(x)) throw new Error("sin: x must be finite");
+        const y = Math.sin(x);
+        if (!Number.isFinite(y)) throw new Error("Non-finite numeric result");
+        return y;
+      },
+      cos(x: number): number {
+        if (typeof x !== "number" || !Number.isFinite(x)) throw new Error("cos: x must be finite");
+        const y = Math.cos(x);
+        if (!Number.isFinite(y)) throw new Error("Non-finite numeric result");
+        return y;
+      },
+      tan(x: number): number {
+        if (typeof x !== "number" || !Number.isFinite(x)) throw new Error("tan: x must be finite");
+        const y = Math.tan(x);
+        if (!Number.isFinite(y)) throw new Error("Non-finite numeric result");
+        return y;
+      },
+      asin(x: number): number {
+        if (typeof x !== "number" || !Number.isFinite(x)) throw new Error("asin: x must be finite");
+        const y = Math.asin(x);
+        if (!Number.isFinite(y)) throw new Error("Non-finite numeric result");
+        return y;
+      },
+      acos(x: number): number {
+        if (typeof x !== "number" || !Number.isFinite(x)) throw new Error("acos: x must be finite");
+        const y = Math.acos(x);
+        if (!Number.isFinite(y)) throw new Error("Non-finite numeric result");
+        return y;
+      },
+      atan(x: number): number {
+        if (typeof x !== "number" || !Number.isFinite(x)) throw new Error("atan: x must be finite");
+        const y = Math.atan(x);
+        if (!Number.isFinite(y)) throw new Error("Non-finite numeric result");
+        return y;
+      },
+      atan2(y: number, x: number): number {
+        if (typeof y !== "number" || !Number.isFinite(y)) throw new Error("atan2: y must be finite");
+        if (typeof x !== "number" || !Number.isFinite(x)) throw new Error("atan2: x must be finite");
+        const out = Math.atan2(y, x);
+        if (!Number.isFinite(out)) throw new Error("Non-finite numeric result");
+        return out;
+      },
+      sinh(x: number): number {
+        if (typeof x !== "number" || !Number.isFinite(x)) throw new Error("sinh: x must be finite");
+        const y = Math.sinh(x);
+        if (!Number.isFinite(y)) throw new Error("Non-finite numeric result");
+        return y;
+      },
+      cosh(x: number): number {
+        if (typeof x !== "number" || !Number.isFinite(x)) throw new Error("cosh: x must be finite");
+        const y = Math.cosh(x);
+        if (!Number.isFinite(y)) throw new Error("Non-finite numeric result");
+        return y;
+      },
+      tanh(x: number): number {
+        if (typeof x !== "number" || !Number.isFinite(x)) throw new Error("tanh: x must be finite");
+        const y = Math.tanh(x);
+        if (!Number.isFinite(y)) throw new Error("Non-finite numeric result");
+        return y;
+      },
+      ceil(x: number): number {
+        if (typeof x !== "number" || !Number.isFinite(x)) throw new Error("ceil: x must be finite");
+        const y = Math.ceil(x);
+        if (!Number.isFinite(y)) throw new Error("Non-finite numeric result");
+        return y;
+      },
+      floor(x: number): number {
+        if (typeof x !== "number" || !Number.isFinite(x)) throw new Error("floor: x must be finite");
+        const y = Math.floor(x);
+        if (!Number.isFinite(y)) throw new Error("Non-finite numeric result");
+        return y;
+      },
+      trunc(x: number): number {
+        if (typeof x !== "number" || !Number.isFinite(x)) throw new Error("trunc: x must be finite");
+        const y = Math.trunc(x);
+        if (!Number.isFinite(y)) throw new Error("Non-finite numeric result");
+        return y;
+      },
+      pow(base: number, exp: number): number {
+        if (typeof base !== "number" || !Number.isFinite(base)) throw new Error("pow: base must be finite");
+        if (typeof exp !== "number" || !Number.isFinite(exp)) throw new Error("pow: exp must be finite");
+        const y = base ** exp;
+        if (!Number.isFinite(y)) throw new Error("Non-finite numeric result");
+        return y;
+      },
+      E: Math.E,
 	    PI: Math.PI,
 	  }),
+
+  text: makeModule({
+    concat(...parts: unknown[]): unknown {
+      let len: number | null = null;
+      for (const p of parts) {
+        if (!Array.isArray(p)) continue;
+        len = len ?? p.length;
+        if (len !== p.length) throw new Error("concat: array length mismatch");
+      }
+
+      if (len === null) {
+        let out = "";
+        for (const p of parts) out += textPartToString(p, "concat");
+        return out;
+      }
+
+      const out = new Array<string>(len);
+      for (let i = 0; i < len; i++) {
+        let s = "";
+        for (const p of parts) {
+          const v = Array.isArray(p) ? p[i] : p;
+          s += textPartToString(v, `concat [index ${i}]`);
+        }
+        out[i] = s;
+      }
+      return out;
+    },
+    repeat(value: unknown, count: number): unknown {
+      if (!Number.isFinite(count) || !Number.isInteger(count) || count < 0) {
+        throw new Error("repeat: count must be a non-negative integer");
+      }
+
+      if (typeof value === "string") return value.repeat(count);
+      if (!Array.isArray(value)) throw new Error("repeat: expected string or string array");
+
+      const out = new Array<string>(value.length);
+      for (let i = 0; i < value.length; i++) {
+        const v = value[i];
+        if (typeof v !== "string") throw new Error("repeat: expected string array");
+        out[i] = v.repeat(count);
+      }
+      return out;
+    },
+  }),
 
   data: makeModule({
     sequence(count: number, opts?: { start?: number; step?: number }): number[] {

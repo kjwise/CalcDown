@@ -106,6 +106,7 @@ function formatDataBlock(content) {
 
   let name = null;
   let primaryKey = null;
+  let sortBy = null;
   let source = null;
   let format = null;
   let hash = null;
@@ -123,6 +124,10 @@ function formatDataBlock(content) {
     }
     if (t.startsWith("primaryKey:")) {
       primaryKey = t.slice("primaryKey:".length).trim() || null;
+      continue;
+    }
+    if (t.startsWith("sortBy:")) {
+      sortBy = t.slice("sortBy:".length).trim() || null;
       continue;
     }
     if (t.startsWith("source:")) {
@@ -161,6 +166,7 @@ function formatDataBlock(content) {
   const out = [];
   if (name) out.push(`name: ${name}`);
   if (primaryKey) out.push(`primaryKey: ${primaryKey}`);
+  if (sortBy) out.push(`sortBy: ${sortBy}`);
   if (source) out.push(`source: ${source}`);
   if (format) out.push(`format: ${format}`);
   if (hash) out.push(`hash: ${hash}`);

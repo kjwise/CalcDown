@@ -1,6 +1,6 @@
 ---
 title: Invoice (CalcDown demo3)
-calcdown: 0.6
+calcdown: 0.7
 ---
 
 # Invoice
@@ -18,6 +18,7 @@ tax_rate : percent = 24.0
 ``` data
 name: items
 primaryKey: id
+sortBy: name
 columns:
   id: string
   name: string
@@ -40,7 +41,7 @@ const lines = std.table.map(items, (row) => ({
   line_total: row.qty * row.unit_price,
 }));
 
-const subtotal = std.table.sum(lines, "line_total");
+const subtotal = std.math.sum(items.qty * items.unit_price);
 const tax = subtotal * (tax_rate / 100);
 const total = subtotal + tax;
 ```

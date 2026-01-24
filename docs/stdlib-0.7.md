@@ -1,11 +1,8 @@
-# CalcDown Standard Library 0.5 (Draft)
+# CalcDown Standard Library 0.7 (Draft)
 
-**This draft is SUPERSEDED.**  
-Current version → [CalcDown 0.7](calcdown-0.7.md) — [stdlib 0.7](stdlib-0.7.md)
+Status: **Draft / experimental**. This document specifies the standard library object available as `std` when evaluating CalcScript expressions in CalcDown 0.7.
 
-Status: **Draft / experimental**. This document specifies the standard library object available as `std` when evaluating CalcScript 0.5 expressions.
-
-See also: `docs/calcdown-0.5.md` (the file format, execution model, and CalcScript subset).
+See also: `docs/calcdown-0.7.md` (the file format, project files, execution model, and tooling).
 
 Goals:
 
@@ -19,7 +16,7 @@ The key words **MUST**, **MUST NOT**, **SHOULD**, and **MAY** are to be interpre
 
 ## 1) Conformance
 
-A CalcDown 0.5 engine MUST provide a `std` object with the **Core** APIs in §3.
+A CalcDown 0.7 engine MUST provide a `std` object with the **Core** APIs in §3.
 
 Engines MAY provide additional APIs in §4 (Recommended) and beyond, but MUST NOT expose unsafe capabilities (network, storage, timers, dynamic code loading).
 
@@ -86,6 +83,105 @@ Rules:
 
 - `digits` MUST be an integer (default `0`).
 - Engines SHOULD use “half away from zero” semantics for spreadsheet parity.
+
+#### `std.math.abs(x)`
+
+Signature:
+
+```ts
+abs(x: number): number
+```
+
+Rules:
+
+- MUST throw if `x` is not a finite number.
+
+#### `std.math.sign(x)`
+
+Signature:
+
+```ts
+sign(x: number): number
+```
+
+Rules:
+
+- MUST throw if `x` is not a finite number.
+
+#### `std.math.sqrt(x)`
+
+Signature:
+
+```ts
+sqrt(x: number): number
+```
+
+Rules:
+
+- MUST throw if `x` is not a finite number.
+- MUST throw if the result is not a finite number.
+
+#### `std.math.exp(x)`
+
+Signature:
+
+```ts
+exp(x: number): number
+```
+
+Rules:
+
+- MUST throw if `x` is not a finite number.
+- MUST throw if the result is not a finite number.
+
+#### `std.math.ln(x)`
+
+Signature:
+
+```ts
+ln(x: number): number
+```
+
+Rules:
+
+- MUST throw if `x` is not a finite number.
+- MUST throw if the result is not a finite number.
+
+#### `std.math.log10(x)`
+
+Signature:
+
+```ts
+log10(x: number): number
+```
+
+Rules:
+
+- MUST throw if `x` is not a finite number.
+- MUST throw if the result is not a finite number.
+
+#### Additional scalar math (0.7)
+
+The following functions MUST be provided:
+
+- `sin(x)`, `cos(x)`, `tan(x)`
+- `asin(x)`, `acos(x)`, `atan(x)`, `atan2(y, x)`
+- `sinh(x)`, `cosh(x)`, `tanh(x)`
+- `ceil(x)`, `floor(x)`, `trunc(x)`
+- `pow(base, exp)`
+
+Rules:
+
+- Each numeric argument MUST be a finite number.
+- The result MUST be a finite number.
+
+#### `std.math.E`
+
+A numeric constant equal to *e*.
+
+#### `std.math.PI`
+
+A numeric constant equal to π.
 
 ### 3.2 `std.data`
 
@@ -325,6 +421,19 @@ Rules:
 
 ### 3.5 `std.date`
 
+#### `std.date.now()`
+
+Return the current datetime according to the evaluation context.
+
+Rules:
+
+- Engines SHOULD supply a deterministic “current datetime” value per evaluation session.
+- If no context is supplied, implementations MAY use the host’s current time.
+
+#### `std.date.today()`
+
+Return the current date (UTC midnight) according to the evaluation context.
+
 #### `std.date.parse(value)`
 
 Parse an ISO date string (`YYYY-MM-DD`) into a `Date` (UTC midnight).
@@ -353,8 +462,51 @@ Excel-compatible payment amount for a loan (PMT).
 
 Throw a deterministic model error if `condition` is falsy.
 
+### 3.8 `std.text`
+
+#### `std.text.concat(...parts)`
+
+Concatenate text and numbers deterministically. Scalars broadcast over arrays.
+
+Signature:
+
+```ts
+concat(...parts: Array<string | number | Array<string | number>>): string | string[]
+```
+
+Rules:
+
+- Each `part` MUST be either:
+  - a `string`
+  - a finite `number`
+  - an array of `string | finite number`
+- If any `part` is an array, then all array parts MUST have the same length. Scalars MUST be broadcast across that length.
+- The return value MUST be:
+  - a `string` (if all parts are scalars), or
+  - a `string[]` (if any part is an array)
+
+#### `std.text.repeat(value, count)`
+
+Repeat a string (or each string in an array).
+
+Signature:
+
+```ts
+repeat(value: string | string[], count: number): string | string[]
+```
+
+Rules:
+
+- `count` MUST be a non-negative integer.
+- If `value` is an array, it MUST be an array of strings.
+
 ## 4) Recommended APIs (optional, but expected soon)
 
 - `std.lookup.interpolate`
 - `std.finance.ipmt`, `std.finance.ppmt`
 - `std.date.range` and other calendar helpers
+
+## Appendix A) Changes from 0.6 → 0.7
+
+- Expand `std.math` with common scalar math (trig, hyperbolic, ceil/floor/trunc, pow) and constant `E`.
+- 0.7 otherwise keeps the 0.x standard library small and safety-first.

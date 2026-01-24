@@ -63,6 +63,7 @@ export interface DataTableSource {
 export interface DataTable {
   name: string;
   primaryKey: string;
+  sortBy?: string;
   columns: Record<string, InputType>;
   rows: Record<string, unknown>[];
   source?: DataTableSource;

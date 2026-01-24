@@ -38,7 +38,7 @@ export interface UnaryExpr {
 
 export interface BinaryExpr {
   kind: "binary";
-  op: "+" | "-" | "*" | "/" | "**";
+  op: "+" | "-" | "*" | "/" | "**" | "&";
   left: Expr;
   right: Expr;
 }
