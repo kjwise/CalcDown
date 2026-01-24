@@ -5,7 +5,7 @@ import { parseProgram } from "../dist/index.js";
 import { parseViewBlock } from "../dist/views.js";
 
 test("view blocks accept YAML (single object)", () => {
-  const markdown = `---\ncalcdown: 0.3\n---\n\n\`\`\`view\nid: summary\ntype: cards\nlibrary: calcdown\nspec:\n  title: Summary\n  items:\n    - key: a\n      label: A\n      format: integer\n\`\`\`\n`;
+  const markdown = `---\ncalcdown: 0.5\n---\n\n\`\`\`view\nid: summary\ntype: cards\nlibrary: calcdown\nspec:\n  title: Summary\n  items:\n    - key: a\n      label: A\n      format: integer\n\`\`\`\n`;
   const parsed = parseProgram(markdown);
   const block = parsed.program.blocks.find((b) => b.lang === "view");
   assert.ok(block);
@@ -20,7 +20,7 @@ test("view blocks accept YAML (single object)", () => {
 });
 
 test("view blocks accept YAML (array of objects)", () => {
-  const markdown = `---\ncalcdown: 0.3\n---\n\n\`\`\`view\n- id: one\n  type: cards\n  library: calcdown\n  spec:\n    title: One\n    items:\n      - key: a\n- id: two\n  type: table\n  library: calcdown\n  source: rows\n  spec:\n    title: Two\n    columns:\n      - key: x\n        label: X\n\`\`\`\n`;
+  const markdown = `---\ncalcdown: 0.5\n---\n\n\`\`\`view\n- id: one\n  type: cards\n  library: calcdown\n  spec:\n    title: One\n    items:\n      - key: a\n- id: two\n  type: table\n  library: calcdown\n  source: rows\n  spec:\n    title: Two\n    columns:\n      - key: x\n        label: X\n\`\`\`\n`;
   const parsed = parseProgram(markdown);
   const block = parsed.program.blocks.find((b) => b.lang === "view");
   assert.ok(block);
@@ -33,7 +33,7 @@ test("view blocks accept YAML (array of objects)", () => {
 });
 
 test("view blocks reject prototype pollution keys", () => {
-  const markdown = `---\ncalcdown: 0.3\n---\n\n\`\`\`view\nid: bad\ntype: cards\nlibrary: calcdown\n__proto__:\n  polluted: true\nspec:\n  items:\n    - key: a\n\`\`\`\n`;
+  const markdown = `---\ncalcdown: 0.5\n---\n\n\`\`\`view\nid: bad\ntype: cards\nlibrary: calcdown\n__proto__:\n  polluted: true\nspec:\n  items:\n    - key: a\n\`\`\`\n`;
   const parsed = parseProgram(markdown);
   const block = parsed.program.blocks.find((b) => b.lang === "view");
   assert.ok(block);

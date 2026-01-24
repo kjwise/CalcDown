@@ -1,11 +1,11 @@
 ---
-title: Invoice (CalcDown demo3)
+title: Invoice (external data table)
 calcdown: 0.5
 ---
 
-# Invoice
+# Invoice (external data)
 
-This example demonstrates **tabular input** (a `data` table) and **tabular output** (a computed table node), rendered via standardized `view` objects.
+This example is the same as `invoice.calc.md`, but the `items` table is loaded from an external CSV file.
 
 ## Inputs
 
@@ -18,15 +18,16 @@ tax_rate : percent = 24.0
 ``` data
 name: items
 primaryKey: id
+source: ./data/items.csv
+format: csv
+hash: sha256:88fe3eb07c4a121919e4b28588abf0bde8d97cb45e63c0903d4126dafb797fec
 columns:
   id: string
   name: string
   qty: integer
   unit_price: number
 ---
-{"id":"i1","name":"Coffee beans","qty":2,"unit_price":18.50}
-{"id":"i2","name":"Milk","qty":1,"unit_price":2.25}
-{"id":"i3","name":"Croissant","qty":3,"unit_price":3.10}
+# External data source: docs/examples/data/items.csv
 ```
 
 ## Calc
@@ -73,8 +74,8 @@ const total = subtotal + tax;
           "label": "Unit price"
         }
       ],
-      "editable": true,
-      "title": "Items (editable)"
+      "editable": false,
+      "title": "Items (CSV)"
     },
     "type": "table"
   },
@@ -147,26 +148,6 @@ const total = subtotal + tax;
       "title": "Summary"
     },
     "type": "cards"
-  },
-  {
-    "id": "main",
-    "library": "calcdown",
-    "spec": {
-      "direction": "column",
-      "items": [
-        {
-          "ref": "summary"
-        },
-        {
-          "ref": "items"
-        },
-        {
-          "ref": "lines"
-        }
-      ],
-      "title": "Invoice"
-    },
-    "type": "layout"
   }
 ]
 ```

@@ -4,7 +4,11 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { evaluateProgram, parseProgram } from "../dist/index.js";
-import { parseViewBlock } from "../dist/views.js";
+import crypto from "node:crypto";
+
+import { coerceRowsToTable } from "../dist/data.js";
+import { validateViewsFromBlocks } from "../dist/view_contract.js";
+import { parseCsv } from "../dist/util/csv.js";
 
 function severityCounts(messages) {
   const out = { error: 0, warning: 0, info: 0 };
@@ -28,6 +32,173 @@ function normalizeMessageText(msg) {
   return typeof m === "string" && m.trim() ? m.trim() : "Unknown error";
 }
 
+function sha256Hex(text) {
+  return crypto.createHash("sha256").update(Buffer.from(text, "utf8")).digest("hex");
+}
+
+function parseCsvRowsToObjects(csvText) {
+  const parsed = parseCsv(csvText);
+  if (!parsed.header.length) return { header: [], rows: [] };
+
+  const header = parsed.header;
+  const rows = [];
+  for (const row of parsed.rows) {
+    const obj = Object.create(null);
+    for (let i = 0; i < header.length; i++) {
+      const key = header[i];
+      if (!key) continue;
+      obj[key] = row[i] ?? "";
+    }
+    rows.push(obj);
+  }
+  return { header, rows };
+}
+
+function csvCellToTyped(type, raw) {
+  if (raw === undefined || raw === null) return undefined;
+  const text = String(raw);
+  if (!text) return undefined;
+  const t = type?.name ?? "string";
+
+  if (t === "string") return text;
+  if (t === "date" || t === "datetime") return text;
+
+  if (t === "boolean") {
+    if (text === "true") return true;
+    if (text === "false") return false;
+    if (text === "1") return true;
+    if (text === "0") return false;
+    return text;
+  }
+
+  if (t === "integer") {
+    const n = Number(text);
+    return Number.isFinite(n) ? Math.trunc(n) : text;
+  }
+
+  if (t === "number" || t === "decimal" || t === "percent" || t === "currency") {
+    const n = Number(text);
+    return Number.isFinite(n) ? n : text;
+  }
+
+  return text;
+}
+
+async function loadExternalTablesForProgram(program, originFile) {
+  const overrides = Object.create(null);
+  const messages = [];
+
+  for (const table of program.tables) {
+    const source = table.source;
+    if (!source) continue;
+
+    const baseDir = path.dirname(originFile);
+    const absDataPath = path.resolve(baseDir, source.uri);
+
+    let text;
+    try {
+      text = await fs.readFile(absDataPath, "utf8");
+    } catch (err) {
+      messages.push({
+        severity: "error",
+        code: "CD_DATA_SOURCE_READ",
+        message: `Failed to read data source: ${err instanceof Error ? err.message : String(err)}`,
+        file: originFile,
+        line: table.line,
+        blockLang: "data",
+        nodeName: table.name,
+      });
+      continue;
+    }
+
+    const expectedHex = source.hash.startsWith("sha256:") ? source.hash.slice("sha256:".length) : null;
+    const actualHex = sha256Hex(text);
+    if (!expectedHex || expectedHex.toLowerCase() !== actualHex.toLowerCase()) {
+      messages.push({
+        severity: "error",
+        code: "CD_DATA_HASH_MISMATCH",
+        message: `Hash mismatch for ${source.uri} (expected ${source.hash}, got sha256:${actualHex})`,
+        file: originFile,
+        line: table.line,
+        blockLang: "data",
+        nodeName: table.name,
+      });
+      continue;
+    }
+
+    let rawRows = [];
+
+    if (source.format === "csv") {
+      const { header, rows } = parseCsvRowsToObjects(text);
+      for (const col of Object.keys(table.columns)) {
+        if (!header.includes(col)) {
+          messages.push({
+            severity: "error",
+            code: "CD_DATA_CSV_MISSING_COLUMN",
+            message: `CSV source is missing declared column: ${col}`,
+            file: absDataPath,
+            line: 1,
+            blockLang: "data",
+            nodeName: table.name,
+          });
+        }
+      }
+      rawRows = rows.map((r) => {
+        const out = Object.create(null);
+        for (const [k, v] of Object.entries(r)) {
+          const type = table.columns[k];
+          out[k] = type ? csvCellToTyped(type, v) : v;
+        }
+        return out;
+      });
+    } else if (source.format === "json") {
+      const trimmed = text.trim();
+      try {
+        if (trimmed.startsWith("[")) {
+          const arr = JSON.parse(trimmed);
+          if (!Array.isArray(arr)) throw new Error("Expected JSON array");
+          rawRows = arr;
+        } else {
+          const lines = trimmed.split(/\\r?\\n/).filter((l) => l.trim() !== "");
+          rawRows = lines.map((l) => JSON.parse(l));
+        }
+      } catch (err) {
+        messages.push({
+          severity: "error",
+          code: "CD_DATA_JSON_PARSE",
+          message: err instanceof Error ? err.message : String(err),
+          file: absDataPath,
+          line: 1,
+          blockLang: "data",
+          nodeName: table.name,
+        });
+        continue;
+      }
+    } else {
+      messages.push({
+        severity: "error",
+        code: "CD_DATA_FORMAT",
+        message: `Unsupported data source format: ${source.format}`,
+        file: originFile,
+        line: table.line,
+        blockLang: "data",
+        nodeName: table.name,
+      });
+      continue;
+    }
+
+    const coerced = coerceRowsToTable(table.name, table.primaryKey, table.columns, rawRows, {
+      baseLine: source.format === "csv" ? 2 : 1,
+      blockLang: "data",
+      file: absDataPath,
+    });
+    messages.push(...coerced.messages);
+    overrides[table.name] = coerced.rows;
+  }
+
+  return { overrides, messages };
+}
+
 async function main() {
   const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
   const examplesDir = path.join(root, "docs", "examples");
@@ -46,16 +217,13 @@ async function main() {
     const markdown = await fs.readFile(filePath, "utf8");
 
     const parsed = parseProgram(markdown);
-    const evaluated = evaluateProgram(parsed.program, {});
+    const external = await loadExternalTablesForProgram(parsed.program, filePath);
+    const evaluated = evaluateProgram(parsed.program, external.overrides);
 
-    const viewMessages = [];
-    for (const b of parsed.program.blocks) {
-      if (b.lang !== "view") continue;
-      const v = parseViewBlock(b);
-      viewMessages.push(...v.messages);
-    }
+    const viewRes = validateViewsFromBlocks(parsed.program.blocks);
+    const viewMessages = viewRes.messages;
 
-    const messages = [...parsed.messages, ...evaluated.messages, ...viewMessages];
+    const messages = [...parsed.messages, ...external.messages, ...evaluated.messages, ...viewMessages];
     const counts = severityCounts(messages);
 
     let status;
@@ -79,7 +247,7 @@ async function main() {
   const lines = [];
   lines.push("# Compatibility checklist (examples)");
   lines.push("");
-  lines.push("This file tracks whether each `docs/examples/*.calc.md` example parses and evaluates under CalcDown 0.3.");
+  lines.push("This file tracks whether each `docs/examples/*.calc.md` example parses and evaluates under CalcDown 0.5.");
   lines.push("");
   lines.push("Legend: ✓ works, ⚠ partial (warnings), ✗ broken (errors)");
   lines.push("");
@@ -98,4 +266,3 @@ main().catch((err) => {
   process.stderr.write(`ERROR: ${msg}\n`);
   process.exitCode = 1;
 });
-

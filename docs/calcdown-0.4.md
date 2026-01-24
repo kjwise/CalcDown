@@ -1,11 +1,11 @@
-# CalcDown 0.3 (Draft Specification)
+# CalcDown 0.4 (Draft Specification)
 
 **This draft is SUPERSEDED.**  
 Current version → [CalcDown 0.5](calcdown-0.5.md) — [stdlib 0.5](stdlib-0.5.md)
 
 Status: **Draft / experimental**. CalcDown is a text-first, Git-friendly format for “spreadsheet-like” models: typed inputs and data, a deterministic compute graph, and declarative views.
 
-This document specifies **CalcDown 0.3** (the file format and execution model). The companion standard library is specified in `docs/stdlib-0.3.md`.
+This document specifies **CalcDown 0.4** (the file format and execution model). The companion standard library is specified in `docs/stdlib-0.4.md`.
 
 ## 0) Conventions
 
@@ -46,27 +46,45 @@ A CalcDown document is a UTF‑8 Markdown file (recommended extension: `.calc.md
 
 If present, front matter MUST be YAML and SHOULD include:
 
-- `calcdown`: the spec version (`0.3`)
+- `calcdown`: the spec version (`0.4`)
 - `title`: a human-readable title (optional)
 
-Implementations SHOULD accept `calcdown` as either a YAML number (`0.3`) or a string (`"0.3"`), but MUST treat it as an exact version identifier (not a range).
+Front matter MAY include UI hints (non-normative, but recommended):
+
+- `results`: a comma-separated list of node names to display by default (e.g. `results: total, net_profit`)
+
+Implementations SHOULD accept `calcdown` as either a YAML number (`0.4`) or a string (`"0.4"`), but MUST treat it as an exact version identifier (not a range).
 
 If `calcdown` is missing, implementations MAY assume the latest supported `0.x` version, but SHOULD emit a warning.
 
 ## 3) Blocks
 
-CalcDown 0.3 defines the following block types (by code-fence language tag):
+CalcDown 0.4 defines the following block types (by code-fence language tag):
 
 - `inputs` — typed parameters
 - `data` — inline typed tables (small datasets)
-- `calc` — computed nodes (CalcScript 0.3; a safe TS/JS-like subset)
+- `calc` — computed nodes (CalcScript 0.4; a safe TS/JS-like subset)
 - `view` — declarative views (charts, cards, tables)
 
 Implementations MAY support aliases (e.g. `ts`, `js`) for `calc`, but `calc` is the canonical tag.
 
 Documents MAY contain multiple blocks of the same type. Semantically, blocks are concatenated by type (e.g. all `inputs` blocks contribute to the input namespace, all `calc` blocks contribute nodes).
 
-### 3.1 `inputs` block
+### 3.1 Naming and namespaces
+
+All identifiers share a single namespace:
+
+- input names
+- data table names
+- calc node names
+
+Rules:
+
+- Names MUST match `^[A-Za-z_][A-Za-z0-9_]*$`.
+- Names MUST be unique across the entire document (no overlaps between inputs/tables/nodes).
+- The identifier `std` is reserved and MUST NOT be used as an input/table/node name.
+
+### 3.2 `inputs` block
 
 Defines named, typed scalar values.
 
@@ -76,15 +94,12 @@ Defines named, typed scalar values.
 <name> : <type> = <default> [# comment]
 ```
 
-**Rules:**
+Rules:
 
-- `<name>` MUST match `^[A-Za-z_][A-Za-z0-9_]*$`.
-- Input names MUST be unique across the entire document (including `calc` node names and `data` table names).
-- The identifier `std` is reserved and MUST NOT be used as an input name.
-- Defaults MUST be parseable as the declared type.
+- Input defaults MUST be parseable as the declared type.
 - Implementations SHOULD expose inputs as UI controls (field/slider/date picker).
 
-### 3.2 `data` block (inline tables)
+### 3.3 `data` block (inline tables)
 
 Used for small, reviewable datasets. For large datasets, prefer external files or application-specific attachments.
 
@@ -94,24 +109,24 @@ A `data` block declares a single table with:
 - A `---` separator line
 - JSON Lines (JSONL), one row per line (diff-friendly)
 
-**Header keys (0.3):**
+**Header keys (0.4):**
 
-- `name` (string, required): table name (identifier-style recommended)
+- `name` (string, required): table name
 - `primaryKey` (string, required): column name used as stable row identity
 - `columns` (map, required): `columnName: type`
 
-**Rules:**
+Header rules:
 
-- `name` SHOULD match `^[A-Za-z_][A-Za-z0-9_]*$`.
-- Table names MUST be unique across the entire document and MUST NOT conflict with input or node names.
-- The identifier `std` is reserved and MUST NOT be used as a table name.
+- Headers MUST be expressible as a YAML mapping using only scalars plus the `columns:` mapping.
+- Tabs SHOULD NOT be used for indentation (spaces only).
+- Implementations MAY ignore unknown header keys, but SHOULD emit a warning.
 
-**Availability to `calc`:**
+Availability to `calc`:
 
 - A `data` table MUST be available in `calc` expressions by its `name` identifier.
-- The table value model is implementation-defined, but engines SHOULD provide a row-oriented view equivalent to `Array<Record<string, unknown>>` (one object per row) so views can consume it.
+- Engines SHOULD provide a row-oriented view equivalent to `Array<Record<string, unknown>>` (one object per row) so views can consume it.
 
-**Row format:**
+Row rules:
 
 - Each JSONL line MUST be a JSON object.
 - Each row object MUST include the `primaryKey` field.
@@ -121,56 +136,52 @@ Example (outer fence uses 4 backticks to safely nest Markdown fences):
 
 ````md
 ```data
-name: expenses
+name: items
 primaryKey: id
 columns:
   id: string
-  date: date
-  category: string
-  amount: currency(ISK)
+  name: string
+  qty: integer
+  unit_price: number
 ---
-{"id":"e1","date":"2026-01-01","category":"Food","amount":18990}
-{"id":"e2","date":"2026-01-03","category":"Transport","amount":4100}
+{"id":"i1","name":"Coffee beans","qty":2,"unit_price":18.50}
+{"id":"i2","name":"Milk","qty":1,"unit_price":2.25}
 ```
 ````
 
-### 3.3 `calc` block (CalcScript 0.3)
+### 3.4 `calc` block
 
-CalcScript is a **TypeScript/JavaScript-like** language that is **not executed directly**. An engine parses it, validates it, and evaluates it in a sandbox.
+Defines computed nodes using **CalcScript 0.4**.
 
-In CalcDown 0.3, a `calc` block is a sequence of top-level `const` declarations:
+Each top-level declaration has the form:
 
 ```ts
-const months = years * 12;
-const rate_mo = std.finance.toMonthlyRate(annual_return);
-const final_balance = std.data.last(balances);
+const <name> = <expr>;
 ```
 
-Each `const <name> = <expr>;` defines a **node** in the compute graph.
+Rules:
 
-**Rules:**
-
-- Node names MUST match `^[A-Za-z_][A-Za-z0-9_]*$`.
-- Node names MUST be unique across the entire document (including input names).
+- Only `const` declarations are defined in CalcScript 0.4.
+- Declarations MUST end with `;` (semicolon).
 - Engines MUST compute nodes as a DAG (topologically sorted).
 - The only ambient global identifier is `std` (the standard library).
-- The identifier `std` is reserved and MUST NOT be used as a node name.
+- Calls MUST have a callee that is a member path rooted at `std` (e.g. `std.finance.pmt(...)`).
 - CalcScript MUST support `//` line comments and `/* ... */` block comments.
 
-**CalcScript 0.3 expression subset (normative):**
+CalcScript 0.4 expression subset (normative):
 
 - Literals: numbers, strings, booleans
 - Identifiers: `foo`, `bar_baz`
 - Unary: `-x`
 - Binary: `+ - * / **` (with standard precedence; `**` is right-associative)
 - Member access: `a.b`
-- Calls: `f(x, y)` (calls MUST have a callee that is a member path rooted at `std`, e.g. `std.finance.pmt(...)`)
+- Calls: `f(x, y)` (calls MUST have a callee rooted at `std`)
 - Object literals: `{ a: 1, b, "c": 3 }` (shorthand allowed for identifiers)
 - Arrow functions (expression-bodied only): `(x, i) => x + i` or `x => x + 1`
 
-Everything else is out of scope for 0.3 (loops, assignments, `new`, `this`, dynamic property access, `import`, etc.).
+Everything else is out of scope for 0.4 (loops, assignments, `new`, `this`, dynamic property access, `import`, etc.).
 
-### 3.4 `view` block
+### 3.5 `view` block
 
 Views are declarative and MUST be derivable from existing nodes/tables.
 
@@ -188,11 +199,11 @@ At minimum, every view object MUST include:
 - `library` (string): the view “dialect” (e.g. `calcdown`, `vega-lite`)
 - `spec` (object): view-type/library-specific configuration
 
-Views MAY include additional top-level fields. CalcDown 0.3 standardizes `source` for table-backed views:
+Views MAY include additional top-level fields. CalcDown 0.4 standardizes `source` for table-backed views:
 
 - `source` (string, optional): the name of a table node (a `data` table or a computed table-like node).
 
-#### 3.4.1 Standard view types (recommended)
+#### 3.5.1 Standard view types (recommended)
 
 CalcDown intends “views” to be a stable, declarative contract between the model and any UI.
 
@@ -237,30 +248,21 @@ Example:
   "library": "calcdown",
   "source": "lines",
   "spec": {
-    "title": "Line items",
-    "editable": false,
+    "title": "Computed lines",
     "columns": [
       { "key": "name", "label": "Name" },
       { "key": "qty", "label": "Qty", "format": "integer" },
-      { "key": "unit_price", "label": "Unit price", "format": { "kind": "number", "digits": 2 } },
       { "key": "line_total", "label": "Total", "format": { "kind": "number", "digits": 2 } }
     ]
   }
 }
 ```
 
-Required fields:
-
-- `source` (string, required): a table node name
-
-`table.spec` keys:
+`table.spec` keys (0.4):
 
 - `title` (string, optional)
-- `editable` (boolean, optional; default `false`): UIs MAY allow editing if `source` refers to a `data` table.
-- `columns` (array, optional): list of column definitions:
-  - `key` (string, required): column key in each row object
-  - `label` (string, optional)
-  - `format` (optional): same as cards item format
+- `columns` (array, optional): column definitions `{ key, label?, format? }`
+- `editable` (boolean, optional): if true and `source` refers to a `data` table, UIs MAY allow editing table cells
 
 ##### Chart (`type: "chart"`, `library: "calcdown"`)
 
@@ -270,7 +272,7 @@ Required fields:
 
 - `source` (string, required): a table node name
 
-`chart.spec` keys (0.3):
+`chart.spec` keys (0.4):
 
 - `title` (string, optional)
 - `kind` (string, required): `"line"` or `"bar"`
@@ -279,7 +281,7 @@ Required fields:
 
 Implementations MAY also support library-specific charts (e.g. `library: "vega-lite"`), but portable documents SHOULD prefer `library: "calcdown"` charts.
 
-## 4) Types (0.3)
+## 4) Types (0.4)
 
 Scalar types (core):
 
@@ -293,28 +295,48 @@ Scalar types (core):
 - `date` (calendar date; ISO `YYYY-MM-DD` text representation)
 - `datetime` (timestamp; timezone handling implementation-defined)
 
+Date semantics (recommended):
+
+- Engines SHOULD treat `date` values as UTC midnight timestamps internally.
+- Engines SHOULD format `date` values back to ISO `YYYY-MM-DD` for display/serialization.
+
 Implementations SHOULD validate types at boundaries:
 
 - Input parsing
 - Data table row parsing
 - Stdlib function arguments (where practical)
 
-### 4.1 Type Coercion and Validation Rules
+### 4.1 Type coercion and validation rules
 
 CalcDown is designed to be permissive at **UI boundaries** (text fields, form inputs) while remaining strict and deterministic at execution time.
 
-Rules (0.3):
+Rules (0.4):
 
 - **Numeric → `integer`**: when an `integer` value is required and a finite number is provided, engines SHOULD coerce using truncation toward zero (equivalent to JavaScript `Math.trunc`). Non-finite values MUST error.
 - **String → `date`**: engines MUST accept ISO `YYYY-MM-DD` only, and MUST reject other formats unless explicitly documented by the engine.
 - **`decimal` precision**: engines MUST NOT round arithmetic results unless explicitly requested; engines SHOULD preserve at least 10 decimal digits of precision where representable.
 - **`currency(ISO4217)` arithmetic**: engines MUST NOT perform automatic currency conversion. If currency codes are tracked, engines SHOULD error on cross-currency arithmetic.
 
-## 5) Error model
+## 5) Execution model
+
+- The document defines a dependency graph of nodes: inputs, data tables, computed nodes, views.
+- Engines evaluate nodes in topological order.
+- On change, engines SHOULD re-evaluate only affected downstream nodes (reactive updates).
+
+### 5.1 Reactive semantics (minimal)
+
+CalcDown is intended to feel reactive like a spreadsheet, but minimal engines MAY recompute the whole program on change.
+
+At minimum:
+
+- **Input change** SHOULD invalidate and recompute only affected downstream nodes.
+- **Table mutation** (row add/edit/delete) SHOULD invalidate nodes that read that table.
+
+## 6) Error model
 
 Engines MUST surface model errors as user-visible messages.
 
-### 5.1 Required errors
+### 6.1 Required errors
 
 At minimum, engines MUST be able to report:
 
@@ -323,31 +345,21 @@ At minimum, engines MUST be able to report:
 - **Division by zero**
 - **Cycle detected** in calc nodes (or unresolved dependencies)
 
-### 5.2 Propagation
+### 6.2 Propagation
 
 - Errors in one node MUST NOT halt evaluation of the entire document.
 - A node that errors MUST be treated as “errored” for the remainder of the evaluation.
 - Downstream nodes that depend on an errored node SHOULD become errored (and SHOULD expose a message that points to the upstream failure).
 
-### 5.3 Messages
+### 6.3 Messages
 
-- Messages SHOULD include stable, human-readable strings.
-- When available, engines SHOULD attach line/node metadata for diagnostics in UIs.
+Messages SHOULD include:
 
-## 6) Execution model
-
-- The document defines a dependency graph of nodes: inputs, data tables, computed nodes, views.
-- Engines evaluate nodes in topological order.
-- On change, engines SHOULD re-evaluate only affected downstream nodes (reactive updates).
-
-### 6.1 Reactive semantics (minimal)
-
-CalcDown is intended to feel reactive like a spreadsheet, but minimal engines MAY recompute the whole program on change.
-
-At minimum:
-
-- **Input change** SHOULD invalidate and recompute only affected downstream nodes.
-- **Table mutation** (row add/edit/delete) SHOULD invalidate nodes that read that table.
+- `severity` (`error|warning`)
+- `message` (string)
+- `line` (1-based, optional)
+- `blockLang` (optional)
+- `nodeName` (optional)
 
 ## 7) Safety model
 
@@ -359,7 +371,15 @@ CalcDown execution MUST be deterministic by default:
 
 The only ambient global is `std`, plus the named inputs/nodes defined by the document.
 
-Engines SHOULD defensively block prototype-pollution surfaces (e.g. disallow `__proto__`, `constructor`, `prototype` in user-authored member access and object keys).
+Prototype-pollution defenses:
+
+- Engines MUST defensively block `__proto__`, `constructor`, and `prototype` in user-authored member access and object keys.
+- Engines SHOULD apply similar defenses when parsing YAML view blocks (reject or sanitize unsafe keys).
+
+YAML view parsing (recommended):
+
+- Engines SHOULD parse YAML view blocks using a schema restricted to JSON types (no custom tags).
+- Engines SHOULD apply resource limits (e.g. alias/anchor limits) to avoid YAML bombs.
 
 ## 8) Canonical formatting (for Git)
 
@@ -375,9 +395,9 @@ This repo includes an initial, minimal formatter used for examples:
 - `make fmt` runs `tools/fmt_calcdown.js` to normalize `docs/examples/*.calc.md`.
 - v1 formatting focuses on `inputs` alignment, `data` header key order (`name`, `primaryKey`, `columns`), and pretty-printing `view` blocks.
 
-## Appendix A) CalcScript 0.3 grammar (informative)
+## Appendix A) CalcScript 0.4 grammar (informative)
 
-This grammar describes the 0.3 expression subset:
+This grammar describes the 0.4 expression subset:
 
 ```
 program     := (decl)* ;
@@ -396,8 +416,9 @@ object      := "{" [ prop ("," prop)* [","] ] "}" ;
 prop        := ident [ ":" expr ] | string ":" expr ;
 ```
 
-## Appendix B) Changes from 0.2 → 0.3
+## Appendix B) Changes from 0.3 → 0.4
 
-- Allows a `view` block to contain a list of view objects (JSON array / YAML sequence).
-- Standardizes a CalcDown-native chart spec (`type: "chart"`, `library: "calcdown"`).
-- Extends the standardized `table` view with `spec.editable` for input tables.
+- Adds front matter hint `results` for default “cards” rendering.
+- Clarifies `data` header constraints (YAML mapping subset + spaces-only indentation).
+- Clarifies `calc` block requirements (top-level `const` only; semicolons required).
+- Strengthens safety guidance for YAML view parsing (JSON schema + alias limits).

@@ -11,6 +11,9 @@ include make/node.mk
 # Formatting
 include make/fmt.mk
 
+# CalcDown CLI-like tools
+include make/calcdown.mk
+
 # Repo dumps (LLM context)
 include make/dump.mk
 

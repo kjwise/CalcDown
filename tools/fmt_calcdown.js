@@ -106,6 +106,9 @@ function formatDataBlock(content) {
 
   let name = null;
   let primaryKey = null;
+  let source = null;
+  let format = null;
+  let hash = null;
   const columns = [];
   const extras = [];
 
@@ -120,6 +123,18 @@ function formatDataBlock(content) {
     }
     if (t.startsWith("primaryKey:")) {
       primaryKey = t.slice("primaryKey:".length).trim() || null;
+      continue;
+    }
+    if (t.startsWith("source:")) {
+      source = t.slice("source:".length).trim() || null;
+      continue;
+    }
+    if (t.startsWith("format:")) {
+      format = t.slice("format:".length).trim() || null;
+      continue;
+    }
+    if (t.startsWith("hash:")) {
+      hash = t.slice("hash:".length).trim() || null;
       continue;
     }
     if (t.startsWith("columns:")) {
@@ -146,6 +161,9 @@ function formatDataBlock(content) {
   const out = [];
   if (name) out.push(`name: ${name}`);
   if (primaryKey) out.push(`primaryKey: ${primaryKey}`);
+  if (source) out.push(`source: ${source}`);
+  if (format) out.push(`format: ${format}`);
+  if (hash) out.push(`hash: ${hash}`);
   for (const extra of extras) out.push(extra);
   out.push("columns:");
   for (const c of columns) out.push(`  ${c.colName}: ${c.typeRaw}`);

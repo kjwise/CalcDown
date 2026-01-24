@@ -1,7 +1,7 @@
 # CalcDown Standard Library 0.1 (Draft)
 
 **This draft is SUPERSEDED.**  
-Current version → [CalcDown 0.3](calcdown-0.3.md) — [stdlib 0.3](stdlib-0.3.md)
+Current version → [CalcDown 0.5](calcdown-0.5.md) — [stdlib 0.5](stdlib-0.5.md)
 
 Status: **Draft / experimental**. This is the minimal “Excel-grade” standard library expected to exist as `std` inside CalcScript evaluation.
 

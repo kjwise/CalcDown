@@ -50,6 +50,7 @@ export function parseViewBlock(block: FencedCodeBlock): { views: ParsedView[]; m
   if (!text) {
     messages.push({
       severity: "error",
+      code: "CD_VIEW_EMPTY_BLOCK",
       message: "Empty view block",
       line: block.fenceLine + 1,
       blockLang: block.lang,
@@ -73,6 +74,7 @@ export function parseViewBlock(block: FencedCodeBlock): { views: ParsedView[]; m
       const jsonMsg = jsonErr instanceof Error ? jsonErr.message : String(jsonErr);
       messages.push({
         severity: "error",
+        code: "CD_VIEW_PARSE",
         message: `View blocks must be JSON or YAML. JSON error: ${jsonMsg}. YAML error: ${yamlMsg}.`,
         line: yamlLine !== null ? baseLine + yamlLine : baseLine,
         blockLang: block.lang,
@@ -87,6 +89,7 @@ export function parseViewBlock(block: FencedCodeBlock): { views: ParsedView[]; m
   } catch (err) {
     messages.push({
       severity: "error",
+      code: "CD_VIEW_DISALLOWED_KEY",
       message: err instanceof Error ? err.message : String(err),
       line: baseLine,
       blockLang: block.lang,
@@ -101,6 +104,7 @@ export function parseViewBlock(block: FencedCodeBlock): { views: ParsedView[]; m
       if (!view) {
         messages.push({
           severity: "error",
+          code: "CD_VIEW_ITEMS_OBJECT",
           message: "View JSON array items must be objects",
           line: baseLine,
           blockLang: block.lang,
@@ -116,6 +120,7 @@ export function parseViewBlock(block: FencedCodeBlock): { views: ParsedView[]; m
   if (!view) {
     messages.push({
       severity: "error",
+      code: "CD_VIEW_EXPECT_OBJECT_OR_ARRAY",
       message: "View JSON must be an object or an array of objects",
       line: baseLine,
       blockLang: block.lang,

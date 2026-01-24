@@ -1,7 +1,7 @@
 import { evaluateProgram, parseProgram } from "./index.js";
 import { formatIsoDate } from "./util/date.js";
-import { parseViewBlock } from "./views.js";
 import { CalcdownMessage, FencedCodeBlock } from "./types.js";
+import { validateViewsFromBlocks } from "./view_contract.js";
 
 const runEl = document.getElementById("run");
 const liveEl = document.getElementById("live");
@@ -169,36 +169,19 @@ function extractCardsView(blocks: FencedCodeBlock[], values: Record<string, unkn
   messages: CalcdownMessage[];
 } {
   const messages: CalcdownMessage[] = [];
+  const validated = validateViewsFromBlocks(blocks);
+  messages.push(...validated.messages);
 
-  for (const b of blocks) {
-    if (b.lang !== "view") continue;
-    const parsed = parseViewBlock(b);
-    messages.push(...parsed.messages);
-    for (const view of parsed.views) {
-      if (view.type !== "cards") continue;
-      if (!view.spec || typeof view.spec !== "object" || view.spec === null) continue;
-
-      const spec = view.spec as Record<string, unknown>;
-      const itemsRaw = spec.items;
-      if (!Array.isArray(itemsRaw)) continue;
-
-      const items: { key: string; label?: string; format?: CardFormat }[] = [];
-      for (const it of itemsRaw) {
-        if (!it || typeof it !== "object") continue;
-        const obj = it as Record<string, unknown>;
-        const key = typeof obj.key === "string" ? obj.key : null;
-        if (!key) continue;
-        const label = typeof obj.label === "string" ? obj.label : undefined;
-        const format = (obj.format as CardFormat | undefined) ?? undefined;
-        items.push({ key, ...(label ? { label } : {}), ...(format ? { format } : {}) });
-      }
-
-      if (items.length === 0) continue;
-
-      const title = typeof spec.title === "string" ? spec.title : null;
-      renderCards(title, items, values);
-      return { rendered: true, messages };
-    }
+  for (const view of validated.views) {
+    if (view.type !== "cards") continue;
+    const title = view.spec.title ?? null;
+    const items = view.spec.items.map((it) => ({
+      key: it.key,
+      label: it.label,
+      ...(it.format ? { format: it.format as CardFormat } : {}),
+    }));
+    renderCards(title, items, values);
+    return { rendered: true, messages };
   }
 
   return { rendered: false, messages };

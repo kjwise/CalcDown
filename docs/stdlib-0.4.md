@@ -1,11 +1,11 @@
-# CalcDown Standard Library 0.3 (Draft)
+# CalcDown Standard Library 0.4 (Draft)
 
 **This draft is SUPERSEDED.**  
 Current version → [CalcDown 0.5](calcdown-0.5.md) — [stdlib 0.5](stdlib-0.5.md)
 
-Status: **Draft / experimental**. This document specifies the standard library object available as `std` when evaluating CalcScript 0.3 expressions.
+Status: **Draft / experimental**. This document specifies the standard library object available as `std` when evaluating CalcScript 0.4 expressions.
 
-See also: `docs/calcdown-0.3.md` (the file format, execution model, and CalcScript subset).
+See also: `docs/calcdown-0.4.md` (the file format, execution model, and CalcScript subset).
 
 Goals:
 
@@ -19,7 +19,7 @@ The key words **MUST**, **MUST NOT**, **SHOULD**, and **MAY** are to be interpre
 
 ## 1) Conformance
 
-A CalcDown 0.3 engine MUST provide a `std` object with the **Core** APIs in §3.
+A CalcDown 0.4 engine MUST provide a `std` object with the **Core** APIs in §3.
 
 Engines MAY provide additional APIs in §4 (Recommended) and beyond, but MUST NOT expose unsafe capabilities (network, storage, timers, dynamic code loading).
 
@@ -51,6 +51,50 @@ Rules:
 
 - MUST throw if `xs` is not an array of numbers.
 - MUST be deterministic (no parallel reduction nondeterminism).
+
+#### `std.math.mean(xs)`
+
+Mean (average) of a numeric array.
+
+Signature:
+
+```ts
+mean(xs: number[]): number
+```
+
+Rules:
+
+- MUST throw if `xs` is empty.
+
+#### `std.math.minOf(xs)` / `std.math.maxOf(xs)`
+
+Minimum / maximum of a numeric array.
+
+Signature:
+
+```ts
+minOf(xs: number[]): number
+maxOf(xs: number[]): number
+```
+
+Rules:
+
+- MUST throw if `xs` is empty.
+
+#### `std.math.round(x, digits?)`
+
+Round a number to a given number of decimal digits.
+
+Signature:
+
+```ts
+round(x: number, digits?: number): number
+```
+
+Rules:
+
+- `digits` MUST be an integer (default `0`).
+- Rounding MUST be deterministic; engines SHOULD use “half away from zero” semantics for spreadsheet parity.
 
 ### 3.2 `std.data`
 
@@ -197,6 +241,37 @@ Rules:
 
 - MUST throw if any value in the column is not a finite number.
 
+#### `std.table.filter(rows, predicate)`
+
+Filter rows with a predicate function.
+
+Signature:
+
+```ts
+filter<T extends Record<string, unknown>>(
+  rows: T[],
+  predicate: (row: T, index: number) => unknown
+): T[]
+```
+
+Rules:
+
+- MUST throw if `rows` is not an array of objects.
+
+#### `std.table.sortBy(rows, key, direction?)`
+
+Sort rows by a key (alias of `std.data.sortBy` for row arrays).
+
+Signature:
+
+```ts
+sortBy<T extends Record<string, unknown>>(
+  rows: T[],
+  key: string,
+  direction?: "asc" | "desc"
+): T[]
+```
+
 ### 3.4 `std.date`
 
 #### `std.date.parse(value)`
@@ -224,7 +299,7 @@ Signature:
 format(date: Date, template: string): string
 ```
 
-Supported tokens (0.3):
+Supported tokens (0.4):
 
 - `%Y` — 4-digit year (UTC)
 - `%m` — 2-digit month (UTC)
@@ -299,31 +374,24 @@ that(condition: unknown, message?: string): void
 
 These APIs are not required for minimal engines, but are strongly recommended for spreadsheet parity.
 
-### 4.1 `std.math`
+### 4.1 `std.table`
 
-- `mean(xs)`
-- `minOf(xs)` / `maxOf(xs)`
-- `round(x, digits=0)`
-
-### 4.2 `std.table`
-
-- `filter(rows, predicate)`
 - `groupSum(rows, byKey, valueKey)`
 - joins (`leftJoin`, `innerJoin`) for relational spreadsheet behavior
 
-### 4.3 `std.date`
+### 4.2 `std.date`
 
 - `addDays(date, days)`
 - `addYears(date, years)`
 - `startOfMonth(date)` / `endOfMonth(date)`
 - `range(start, count, interval)` where `interval ∈ {"day","week","month","quarter","year"}`
 
-### 4.4 `std.lookup`
+### 4.3 `std.lookup`
 
 - `xlookup(key, keys, values, { mode="exact", notFound=null }={})`
 - `interpolate(x, xs, ys, { clamp=true }={})`
 
-### 4.5 `std.finance`
+### 4.4 `std.finance`
 
 - `ipmt`, `ppmt`
 - `npv`, `irr`

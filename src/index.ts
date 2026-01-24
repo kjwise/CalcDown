@@ -42,6 +42,7 @@ export function parseProgram(markdown: string): { program: CalcdownProgram; mess
         if (input.name === "std") {
           messages.push({
             severity: "error",
+            code: "CD_NAME_RESERVED_STD",
             message: "The identifier 'std' is reserved and cannot be used as an input name",
             line: input.line,
             blockLang: block.lang,
@@ -52,6 +53,7 @@ export function parseProgram(markdown: string): { program: CalcdownProgram; mess
         if (seenInputs.has(input.name)) {
           messages.push({
             severity: "error",
+            code: "CD_INPUT_DUPLICATE_ACROSS_BLOCKS",
             message: `Duplicate input name across blocks: ${input.name}`,
             line: input.line,
             blockLang: block.lang,
@@ -62,6 +64,7 @@ export function parseProgram(markdown: string): { program: CalcdownProgram; mess
         if (seenNodes.has(input.name)) {
           messages.push({
             severity: "error",
+            code: "CD_NAME_CONFLICT_INPUT_NODE",
             message: `Name conflict: '${input.name}' is defined as both an input and a calc node`,
             line: input.line,
             blockLang: block.lang,
@@ -72,6 +75,7 @@ export function parseProgram(markdown: string): { program: CalcdownProgram; mess
         if (seenTables.has(input.name)) {
           messages.push({
             severity: "error",
+            code: "CD_NAME_CONFLICT_INPUT_TABLE",
             message: `Name conflict: '${input.name}' is defined as both an input and a data table`,
             line: input.line,
             blockLang: block.lang,
@@ -93,6 +97,7 @@ export function parseProgram(markdown: string): { program: CalcdownProgram; mess
       if (seenTables.has(table.name)) {
         messages.push({
           severity: "error",
+          code: "CD_DATA_DUPLICATE_TABLE_NAME",
           message: `Duplicate table name across data blocks: ${table.name}`,
           line: table.line,
           blockLang: block.lang,
@@ -103,6 +108,7 @@ export function parseProgram(markdown: string): { program: CalcdownProgram; mess
       if (seenInputs.has(table.name)) {
         messages.push({
           severity: "error",
+          code: "CD_NAME_CONFLICT_TABLE_INPUT",
           message: `Name conflict: '${table.name}' is defined as both a data table and an input`,
           line: table.line,
           blockLang: block.lang,
@@ -113,6 +119,7 @@ export function parseProgram(markdown: string): { program: CalcdownProgram; mess
       if (seenNodes.has(table.name)) {
         messages.push({
           severity: "error",
+          code: "CD_NAME_CONFLICT_TABLE_NODE",
           message: `Name conflict: '${table.name}' is defined as both a data table and a calc node`,
           line: table.line,
           blockLang: block.lang,
@@ -133,6 +140,7 @@ export function parseProgram(markdown: string): { program: CalcdownProgram; mess
         if (node.name === "std") {
           messages.push({
             severity: "error",
+            code: "CD_NAME_RESERVED_STD",
             message: "The identifier 'std' is reserved and cannot be used as a node name",
             line: node.line,
             blockLang: block.lang,
@@ -143,6 +151,7 @@ export function parseProgram(markdown: string): { program: CalcdownProgram; mess
         if (seenNodes.has(node.name)) {
           messages.push({
             severity: "error",
+            code: "CD_CALC_DUPLICATE_NODE_ACROSS_BLOCKS",
             message: `Duplicate node name across calc blocks: ${node.name}`,
             line: node.line,
             blockLang: block.lang,
@@ -153,6 +162,7 @@ export function parseProgram(markdown: string): { program: CalcdownProgram; mess
         if (seenInputs.has(node.name)) {
           messages.push({
             severity: "error",
+            code: "CD_NAME_CONFLICT_NODE_INPUT",
             message: `Name conflict: '${node.name}' is defined as both a calc node and an input`,
             line: node.line,
             blockLang: block.lang,
@@ -163,6 +173,7 @@ export function parseProgram(markdown: string): { program: CalcdownProgram; mess
         if (seenTables.has(node.name)) {
           messages.push({
             severity: "error",
+            code: "CD_NAME_CONFLICT_NODE_TABLE",
             message: `Name conflict: '${node.name}' is defined as both a calc node and a data table`,
             line: node.line,
             blockLang: block.lang,
@@ -275,7 +286,7 @@ export function evaluateProgram(
         tables[key] = value;
         continue;
       }
-      messages.push({ severity: "warning", message: `Unknown override: ${key}` });
+      messages.push({ severity: "warning", code: "CD_OVERRIDE_UNKNOWN", message: `Unknown override: ${key}` });
       continue;
     }
     try {
@@ -283,6 +294,7 @@ export function evaluateProgram(
     } catch (err) {
       messages.push({
         severity: "error",
+        code: "CD_OVERRIDE_INVALID",
         message: err instanceof Error ? err.message : String(err),
         nodeName: key,
       });

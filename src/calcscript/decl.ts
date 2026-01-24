@@ -280,6 +280,7 @@ export function extractTopLevelConstDeclarations(source: string, baseLine: numbe
       if (!name) {
         messages.push({
           severity: "error",
+          code: "CD_CALC_DECL_EXPECT_IDENTIFIER",
           message: "Expected identifier after const",
           line: declLine,
         });
@@ -290,6 +291,7 @@ export function extractTopLevelConstDeclarations(source: string, baseLine: numbe
       if (peek() !== "=") {
         messages.push({
           severity: "error",
+          code: "CD_CALC_DECL_EXPECT_EQUALS",
           message: `Expected '=' after const ${name}`,
           line: declLine,
         });
@@ -302,6 +304,7 @@ export function extractTopLevelConstDeclarations(source: string, baseLine: numbe
       if (semicolonPos === null) {
         messages.push({
           severity: "error",
+          code: "CD_CALC_DECL_MISSING_SEMICOLON",
           message: `Missing ';' after const ${name}`,
           line: declLine,
         });
@@ -320,4 +323,3 @@ export function extractTopLevelConstDeclarations(source: string, baseLine: numbe
 
   return { decls, messages };
 }
-

@@ -1,7 +1,8 @@
 import { evaluateProgram, parseProgram } from "./index.js";
-import { parseViewBlock } from "./views.js";
 import { formatIsoDate, parseIsoDate } from "./util/date.js";
-import { CalcdownMessage, DataTable, FencedCodeBlock } from "./types.js";
+import { CalcdownMessage, DataTable } from "./types.js";
+import { validateViewsFromBlocks } from "./view_contract.js";
+import type { CalcdownView, LayoutItem, LayoutSpec, TableViewColumn } from "./view_contract.js";
 
 const runEl = document.getElementById("run");
 const liveEl = document.getElementById("live");
@@ -193,19 +194,7 @@ function resetTablesFromProgram(parsedTables: DataTable[]): void {
   }
 }
 
-function flattenViews(blocks: FencedCodeBlock[]): { views: any[]; messages: CalcdownMessage[] } {
-  const messages: CalcdownMessage[] = [];
-  const out: any[] = [];
-  for (const b of blocks) {
-    if (b.lang !== "view") continue;
-    const parsed = parseViewBlock(b);
-    messages.push(...parsed.messages);
-    out.push(...parsed.views);
-  }
-  return { views: out, messages };
-}
-
-function renderCardsView(title: string | null, items: { key: string; label?: string; format?: ValueFormat }[], values: Record<string, unknown>): void {
+function buildCardsView(title: string | null, items: { key: string; label: string; format?: ValueFormat }[], values: Record<string, unknown>): HTMLElement {
   const view = document.createElement("div");
   view.className = "view";
 
@@ -238,29 +227,16 @@ function renderCardsView(title: string | null, items: { key: string; label?: str
   }
 
   view.appendChild(cards);
-  viewsRoot.appendChild(view);
+  return view;
 }
 
-function columnFormatFromSpec(col: Record<string, unknown>): ValueFormat | undefined {
-  if (!("format" in col)) return undefined;
-  return col.format as ValueFormat | undefined;
-}
-
-function tableColumnKey(col: Record<string, unknown>): string | null {
-  return typeof col.key === "string" ? col.key : null;
-}
-
-function tableColumnLabel(col: Record<string, unknown>): string | null {
-  return typeof col.label === "string" ? col.label : null;
-}
-
-function renderTableView(
+function buildTableView(
   title: string | null,
   sourceName: string,
   columns: { key: string; label: string; format?: ValueFormat }[],
   rows: Record<string, unknown>[],
   editable: boolean
-): void {
+): HTMLElement {
   const view = document.createElement("div");
   view.className = "view";
 
@@ -344,7 +320,94 @@ function renderTableView(
 
   table.appendChild(tbody);
   view.appendChild(table);
-  viewsRoot.appendChild(view);
+  return view;
+}
+
+function defaultColumnsForSource(sourceName: string, rows: Record<string, unknown>[]): TableViewColumn[] {
+  const schema = tableSchemas[sourceName];
+  if (schema) {
+    const keys = Object.keys(schema.columns);
+    return keys.map((k) => ({ key: k, label: k }));
+  }
+  if (rows.length === 0) return [];
+  return Object.keys(rows[0] ?? {}).sort((a, b) => a.localeCompare(b)).map((k) => ({ key: k, label: k }));
+}
+
+function buildLayoutContainer(spec: LayoutSpec): HTMLDivElement {
+  const el = document.createElement("div");
+  el.style.display = "flex";
+  el.style.flexDirection = spec.direction === "row" ? "row" : "column";
+  el.style.gap = "12px";
+  el.style.flexWrap = spec.direction === "row" ? "wrap" : "nowrap";
+  return el;
+}
+
+function buildLayout(spec: LayoutSpec, viewById: Map<string, CalcdownView>, values: Record<string, unknown>): HTMLElement {
+  const wrapper = document.createElement("div");
+  wrapper.className = "view";
+
+  if (spec.title) {
+    const h = document.createElement("div");
+    h.className = "view-title";
+    h.textContent = spec.title;
+    wrapper.appendChild(h);
+  }
+
+  const container = buildLayoutContainer(spec);
+  for (const item of spec.items) {
+    const child = buildLayoutItem(item, viewById, values);
+    if (child) container.appendChild(child);
+  }
+
+  wrapper.appendChild(container);
+  return wrapper;
+}
+
+function buildLayoutItem(item: LayoutItem, viewById: Map<string, CalcdownView>, values: Record<string, unknown>): HTMLElement | null {
+  if (item.kind === "layout") return buildLayout(item.spec, viewById, values);
+
+  const target = viewById.get(item.ref);
+  if (!target) {
+    const missing = document.createElement("div");
+    missing.className = "view";
+    const msg = document.createElement("div");
+    msg.className = "view-title";
+    msg.textContent = `Missing view: ${item.ref}`;
+    missing.appendChild(msg);
+    return missing;
+  }
+
+  if (target.type === "cards") {
+    const title = target.spec.title ?? null;
+    const items = target.spec.items.map((it) => ({
+      key: it.key,
+      label: it.label,
+      ...(it.format ? { format: it.format as ValueFormat } : {}),
+    }));
+    return buildCardsView(title, items, values);
+  }
+
+  if (target.type === "table") {
+    const sourceName = target.source;
+    const raw = values[sourceName];
+    if (!Array.isArray(raw)) return null;
+    const rowObjs = raw.filter((r) => r && typeof r === "object" && !Array.isArray(r)) as Record<string, unknown>[];
+
+    const columns = (target.spec.columns && target.spec.columns.length ? target.spec.columns : defaultColumnsForSource(sourceName, rowObjs)).map((c) => ({
+      key: c.key,
+      label: c.label,
+      ...(c.format ? { format: c.format as ValueFormat } : {}),
+    }));
+
+    const editable = target.spec.editable && sourceName in tableState && sourceName in tableSchemas;
+    const limit = target.spec.limit;
+    const limitedRows = limit !== undefined ? rowObjs.slice(0, limit) : rowObjs;
+    const title = target.spec.title ?? null;
+    return buildTableView(title, sourceName, columns, limitedRows, editable);
+  }
+
+  // Demo 3 focuses on cards + tables.
+  return null;
 }
 
 function recompute(): void {
@@ -359,70 +422,20 @@ function recompute(): void {
 
   clear(viewsRoot);
 
-  const flat = flattenViews(parsed.program.blocks);
-  const viewMessages: CalcdownMessage[] = [...flat.messages];
+  const validated = validateViewsFromBlocks(parsed.program.blocks);
+  const viewMessages: CalcdownMessage[] = [...validated.messages];
 
-  if (flat.views.length > 0) {
-    for (const v of flat.views) {
-      if (!v || typeof v !== "object") continue;
-      const view = v as Record<string, unknown>;
-      const type = typeof view.type === "string" ? view.type : null;
-      const library = typeof view.library === "string" ? view.library : null;
-      const sourceName = typeof view.source === "string" ? view.source : null;
-      const spec = view.spec;
+  if (validated.views.length > 0) {
+    const viewById = new Map(validated.views.map((v) => [v.id, v]));
+    const rootLayout = validated.views.find((v) => v.type === "layout") ?? null;
 
-      if (library !== "calcdown") continue;
-
-      if (type === "cards") {
-        if (!spec || typeof spec !== "object" || spec === null) continue;
-        const s = spec as Record<string, unknown>;
-        const itemsRaw = s.items;
-        if (!Array.isArray(itemsRaw)) continue;
-        const items: { key: string; label?: string; format?: ValueFormat }[] = [];
-        for (const it of itemsRaw) {
-          if (!it || typeof it !== "object") continue;
-          const obj = it as Record<string, unknown>;
-          const key = typeof obj.key === "string" ? obj.key : null;
-          if (!key) continue;
-          const label = typeof obj.label === "string" ? obj.label : undefined;
-          const format = obj.format as ValueFormat | undefined;
-          items.push({ key, ...(label ? { label } : {}), ...(format ? { format } : {}) });
-        }
-        const title = typeof s.title === "string" ? s.title : null;
-        if (items.length) renderCardsView(title, items, evaluated.values);
-        continue;
-      }
-
-      if (type === "table") {
-        if (!sourceName) continue;
-        if (!spec || typeof spec !== "object" || spec === null) continue;
-        const s = spec as Record<string, unknown>;
-        const title = typeof s.title === "string" ? s.title : null;
-        const editable = Boolean(s.editable) && sourceName in tableState;
-
-        const rows = evaluated.values[sourceName];
-        if (!Array.isArray(rows)) continue;
-        const rowObjs = rows.filter((r) => r && typeof r === "object" && !Array.isArray(r)) as Record<string, unknown>[];
-
-        const colsRaw = s.columns;
-        let columns: { key: string; label: string; format?: ValueFormat }[] = [];
-        if (Array.isArray(colsRaw)) {
-          for (const c of colsRaw) {
-            if (!c || typeof c !== "object") continue;
-            const obj = c as Record<string, unknown>;
-            const key = tableColumnKey(obj);
-            if (!key) continue;
-            const label = tableColumnLabel(obj) ?? key;
-            const format = columnFormatFromSpec(obj);
-            columns.push({ key, label, ...(format ? { format } : {}) });
-          }
-        } else if (rowObjs.length > 0) {
-          const keys = Object.keys(rowObjs[0]!);
-          columns = keys.map((k) => ({ key: k, label: k }));
-        }
-
-        if (columns.length) renderTableView(title, sourceName, columns, rowObjs, editable);
-        continue;
+    if (rootLayout && rootLayout.type === "layout") {
+      viewsRoot.appendChild(buildLayout(rootLayout.spec, viewById, evaluated.values));
+    } else {
+      for (const view of validated.views) {
+        if (view.type === "layout") continue;
+        const el = buildLayoutItem({ kind: "ref", ref: view.id }, viewById, evaluated.values);
+        if (el) viewsRoot.appendChild(el);
       }
     }
   } else {
@@ -430,8 +443,8 @@ function recompute(): void {
     const keys =
       desiredResultKeys(fmResults) ??
       parsed.program.nodes.map((n) => n.name).filter((k) => typeof evaluated.values[k] !== "object");
-    const items = keys.slice(0, 8).map((k) => ({ key: k }));
-    renderCardsView(null, items, evaluated.values);
+    const items = keys.slice(0, 8).map((k) => ({ key: k, label: k }));
+    viewsRoot.appendChild(buildCardsView(null, items, evaluated.values));
   }
 
   messages.textContent = JSON.stringify(

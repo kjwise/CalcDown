@@ -4,7 +4,9 @@ export type CalcdownSeverity = "error" | "warning";
 
 export interface CalcdownMessage {
   severity: CalcdownSeverity;
+  code?: string;
   message: string;
+  file?: string;
   line?: number;
   column?: number;
   blockLang?: string;
@@ -52,11 +54,18 @@ export interface InputsBlock {
   inputs: InputDefinition[];
 }
 
+export interface DataTableSource {
+  uri: string;
+  format: "csv" | "json";
+  hash: string; // sha256:<hex>
+}
+
 export interface DataTable {
   name: string;
   primaryKey: string;
   columns: Record<string, InputType>;
   rows: Record<string, unknown>[];
+  source?: DataTableSource;
   line: number;
 }
 

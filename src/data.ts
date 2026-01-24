@@ -50,6 +50,108 @@ function isIdent(name: string): boolean {
   return /^[A-Za-z_][A-Za-z0-9_]*$/.test(name);
 }
 
+export function coerceRowsToTable(
+  tableName: string,
+  primaryKey: string,
+  columns: Record<string, InputType>,
+  rawRows: unknown[],
+  opts: { baseLine: number; blockLang: string; file?: string }
+): { rows: Record<string, unknown>[]; messages: CalcdownMessage[] } {
+  const messages: CalcdownMessage[] = [];
+  const seenKeys = new Set<string>();
+  const rows: Record<string, unknown>[] = [];
+
+  const baseLine = opts.baseLine;
+  const blockLang = opts.blockLang;
+  const file = opts.file;
+
+  for (let i = 0; i < rawRows.length; i++) {
+    const parsed = rawRows[i];
+    const line = baseLine + i;
+
+    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
+      messages.push({
+        severity: "error",
+        code: "CD_DATA_ROW_NOT_OBJECT",
+        message: "Data row must be an object",
+        ...(file ? { file } : {}),
+        line,
+        blockLang,
+        nodeName: tableName,
+      });
+      continue;
+    }
+
+    const obj = parsed as Record<string, unknown>;
+    if (!Object.prototype.hasOwnProperty.call(obj, primaryKey)) {
+      messages.push({
+        severity: "error",
+        code: "CD_DATA_ROW_MISSING_PK",
+        message: `Data row is missing primaryKey '${primaryKey}'`,
+        ...(file ? { file } : {}),
+        line,
+        blockLang,
+        nodeName: tableName,
+      });
+      continue;
+    }
+
+    const pkValue = obj[primaryKey];
+    const pkString = typeof pkValue === "string" ? pkValue : typeof pkValue === "number" ? String(pkValue) : null;
+    if (!pkString) {
+      messages.push({
+        severity: "error",
+        code: "CD_DATA_PK_TYPE",
+        message: `primaryKey '${primaryKey}' must be a string or number`,
+        ...(file ? { file } : {}),
+        line,
+        blockLang,
+        nodeName: tableName,
+      });
+      continue;
+    }
+    if (seenKeys.has(pkString)) {
+      messages.push({
+        severity: "error",
+        code: "CD_DATA_PK_DUPLICATE",
+        message: `Duplicate primaryKey '${pkString}'`,
+        ...(file ? { file } : {}),
+        line,
+        blockLang,
+        nodeName: tableName,
+      });
+      continue;
+    }
+    seenKeys.add(pkString);
+
+    const row: Record<string, unknown> = Object.create(null);
+    for (const [k, v] of Object.entries(obj)) {
+      if (k in columns) {
+        try {
+          row[k] = parseScalarByType(columns[k]!, v);
+        } catch (err) {
+          messages.push({
+            severity: "error",
+            code: "CD_DATA_INVALID_VALUE",
+            message: `Invalid value for column '${k}': ${err instanceof Error ? err.message : String(err)}`,
+            ...(file ? { file } : {}),
+            line,
+            blockLang,
+            nodeName: tableName,
+          });
+          row[k] = v;
+        }
+      } else {
+        row[k] = v;
+      }
+    }
+
+    rows.push(row);
+  }
+
+  return { rows, messages };
+}
+
 export function parseDataBlock(block: FencedCodeBlock): { table: DataTable | null; messages: CalcdownMessage[] } {
   const messages: CalcdownMessage[] = [];
   const lines = block.content.split(/\r?\n/);
@@ -58,6 +160,7 @@ export function parseDataBlock(block: FencedCodeBlock): { table: DataTable | nul
   if (sepIdx === -1) {
     messages.push({
       severity: "error",
+      code: "CD_DATA_MISSING_SEPARATOR",
       message: "Data block is missing '---' separator between header and rows",
       line: block.fenceLine + 1,
       blockLang: block.lang,
@@ -70,6 +173,9 @@ export function parseDataBlock(block: FencedCodeBlock): { table: DataTable | nul
 
   let name: string | null = null;
   let primaryKey: string | null = null;
+  let sourceUri: string | null = null;
+  let sourceFormatRaw: string | null = null;
+  let sourceHash: string | null = null;
   const columns: Record<string, InputType> = Object.create(null);
 
   for (let i = 0; i < headerLines.length; i++) {
@@ -81,6 +187,7 @@ export function parseDataBlock(block: FencedCodeBlock): { table: DataTable | nul
     if (!m) {
       messages.push({
         severity: "error",
+        code: "CD_DATA_HEADER_INVALID_LINE",
         message: `Invalid data header line: ${trimmed}`,
         line: block.fenceLine + 1 + i,
         blockLang: block.lang,
@@ -99,6 +206,18 @@ export function parseDataBlock(block: FencedCodeBlock): { table: DataTable | nul
       primaryKey = value.trim() || null;
       continue;
     }
+    if (key === "source") {
+      sourceUri = value.trim() || null;
+      continue;
+    }
+    if (key === "format") {
+      sourceFormatRaw = value.trim() || null;
+      continue;
+    }
+    if (key === "hash") {
+      sourceHash = value.trim() || null;
+      continue;
+    }
     if (key === "columns") {
       // Read indented column lines until a non-indented key (or end).
       for (i = i + 1; i < headerLines.length; i++) {
@@ -113,6 +232,7 @@ export function parseDataBlock(block: FencedCodeBlock): { table: DataTable | nul
         if (!cm) {
           messages.push({
             severity: "error",
+            code: "CD_DATA_COLUMNS_INVALID_ENTRY",
             message: `Invalid columns entry: ${trimmedCol}`,
             line: block.fenceLine + 1 + i,
             blockLang: block.lang,
@@ -128,6 +248,7 @@ export function parseDataBlock(block: FencedCodeBlock): { table: DataTable | nul
 
     messages.push({
       severity: "warning",
+      code: "CD_DATA_HEADER_UNKNOWN_KEY",
       message: `Unknown data header key: ${key}`,
       line: block.fenceLine + 1 + i,
       blockLang: block.lang,
@@ -137,6 +258,7 @@ export function parseDataBlock(block: FencedCodeBlock): { table: DataTable | nul
   if (!name) {
     messages.push({
       severity: "error",
+      code: "CD_DATA_HEADER_MISSING_NAME",
       message: "Data header is missing required key: name",
       line: block.fenceLine + 1,
       blockLang: block.lang,
@@ -144,6 +266,7 @@ export function parseDataBlock(block: FencedCodeBlock): { table: DataTable | nul
   } else if (!isIdent(name)) {
     messages.push({
       severity: "error",
+      code: "CD_DATA_INVALID_NAME",
       message: `Invalid table name: ${name}`,
       line: block.fenceLine + 1,
       blockLang: block.lang,
@@ -152,6 +275,7 @@ export function parseDataBlock(block: FencedCodeBlock): { table: DataTable | nul
   } else if (name === "std") {
     messages.push({
       severity: "error",
+      code: "CD_DATA_RESERVED_NAME",
       message: "The identifier 'std' is reserved and cannot be used as a table name",
       line: block.fenceLine + 1,
       blockLang: block.lang,
@@ -162,6 +286,7 @@ export function parseDataBlock(block: FencedCodeBlock): { table: DataTable | nul
   if (!primaryKey) {
     messages.push({
       severity: "error",
+      code: "CD_DATA_HEADER_MISSING_PRIMARY_KEY",
       message: "Data header is missing required key: primaryKey",
       line: block.fenceLine + 1,
       blockLang: block.lang,
@@ -171,6 +296,7 @@ export function parseDataBlock(block: FencedCodeBlock): { table: DataTable | nul
   if (Object.keys(columns).length === 0) {
     messages.push({
       severity: "error",
+      code: "CD_DATA_HEADER_MISSING_COLUMNS",
       message: "Data header is missing required key: columns",
       line: block.fenceLine + 1,
       blockLang: block.lang,
@@ -178,6 +304,7 @@ export function parseDataBlock(block: FencedCodeBlock): { table: DataTable | nul
   } else if (primaryKey && !(primaryKey in columns)) {
     messages.push({
       severity: "error",
+      code: "CD_DATA_PRIMARYKEY_NOT_DECLARED",
       message: `primaryKey '${primaryKey}' must be declared in columns`,
       line: block.fenceLine + 1,
       blockLang: block.lang,
@@ -191,96 +318,189 @@ export function parseDataBlock(block: FencedCodeBlock): { table: DataTable | nul
     return { table: null, messages };
   }
 
+  let source: DataTable["source"] | undefined;
+  if (sourceUri) {
+    const formatText = sourceFormatRaw ? sourceFormatRaw.toLowerCase() : "";
+    let format: "csv" | "json" | null = null;
+    if (formatText === "csv") format = "csv";
+    else if (formatText === "json") format = "json";
+    else if (!formatText) {
+      const lower = sourceUri.toLowerCase();
+      if (lower.endsWith(".csv")) format = "csv";
+      else if (lower.endsWith(".json") || lower.endsWith(".jsonl")) format = "json";
+    }
+
+    if (!format) {
+      messages.push({
+        severity: "error",
+        code: "CD_DATA_EXTERNAL_FORMAT",
+        message: "External data tables must specify format: csv|json (or use a .csv/.json extension)",
+        line: block.fenceLine + 1,
+        blockLang: block.lang,
+        nodeName: tableName,
+      });
+    }
+
+    if (!sourceHash) {
+      messages.push({
+        severity: "error",
+        code: "CD_DATA_EXTERNAL_MISSING_HASH",
+        message: "External data tables must specify hash: sha256:<hex>",
+        line: block.fenceLine + 1,
+        blockLang: block.lang,
+        nodeName: tableName,
+      });
+    } else if (!/^sha256:[0-9a-fA-F]{64}$/.test(sourceHash)) {
+      messages.push({
+        severity: "error",
+        code: "CD_DATA_EXTERNAL_INVALID_HASH",
+        message: "Invalid hash format (expected sha256:<64 hex chars>)",
+        line: block.fenceLine + 1,
+        blockLang: block.lang,
+        nodeName: tableName,
+      });
+    }
+
+    // Enforce empty rows section for external sources.
+    for (let i = 0; i < rowLines.length; i++) {
+      const raw = rowLines[i] ?? "";
+      const trimmed = raw.trim();
+      if (!trimmed || trimmed.startsWith("#")) continue;
+      messages.push({
+        severity: "error",
+        code: "CD_DATA_EXTERNAL_INLINE_ROWS",
+        message: "External data tables must not include inline JSONL rows",
+        line: block.fenceLine + 1 + sepIdx + 1 + i,
+        blockLang: block.lang,
+        nodeName: tableName,
+      });
+      break;
+    }
+
+    if (format && sourceHash) {
+      source = { uri: sourceUri, format, hash: sourceHash };
+    }
+  } else {
+    if (sourceFormatRaw) {
+      messages.push({
+        severity: "warning",
+        code: "CD_DATA_UNUSED_FORMAT",
+        message: "Ignoring data header key 'format' without 'source'",
+        line: block.fenceLine + 1,
+        blockLang: block.lang,
+        nodeName: tableName,
+      });
+    }
+    if (sourceHash) {
+      messages.push({
+        severity: "warning",
+        code: "CD_DATA_UNUSED_HASH",
+        message: "Ignoring data header key 'hash' without 'source'",
+        line: block.fenceLine + 1,
+        blockLang: block.lang,
+        nodeName: tableName,
+      });
+    }
+  }
+
   const seenKeys = new Set<string>();
   const rows: Record<string, unknown>[] = [];
 
-  for (let i = 0; i < rowLines.length; i++) {
-    const raw = rowLines[i] ?? "";
-    const trimmed = raw.trim();
-    if (!trimmed) continue;
+  if (!sourceUri) {
+    for (let i = 0; i < rowLines.length; i++) {
+      const raw = rowLines[i] ?? "";
+      const trimmed = raw.trim();
+      if (!trimmed) continue;
 
-    let parsed: unknown;
-    try {
-      parsed = JSON.parse(trimmed);
-    } catch (err) {
-      messages.push({
-        severity: "error",
-        message: err instanceof Error ? err.message : "Invalid JSON row",
-        line: block.fenceLine + 1 + sepIdx + 1 + i,
-        blockLang: block.lang,
-        nodeName: tableName,
-      });
-      continue;
-    }
+      let parsed: unknown;
+      try {
+        parsed = JSON.parse(trimmed);
+      } catch (err) {
+        messages.push({
+          severity: "error",
+          code: "CD_DATA_ROW_INVALID_JSON",
+          message: err instanceof Error ? err.message : "Invalid JSON row",
+          line: block.fenceLine + 1 + sepIdx + 1 + i,
+          blockLang: block.lang,
+          nodeName: tableName,
+        });
+        continue;
+      }
 
-    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
-      messages.push({
-        severity: "error",
-        message: "Data row must be a JSON object",
-        line: block.fenceLine + 1 + sepIdx + 1 + i,
-        blockLang: block.lang,
-        nodeName: tableName,
-      });
-      continue;
-    }
+      if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
+        messages.push({
+          severity: "error",
+          code: "CD_DATA_ROW_NOT_OBJECT",
+          message: "Data row must be a JSON object",
+          line: block.fenceLine + 1 + sepIdx + 1 + i,
+          blockLang: block.lang,
+          nodeName: tableName,
+        });
+        continue;
+      }
 
-    const obj = parsed as Record<string, unknown>;
-    if (!Object.prototype.hasOwnProperty.call(obj, pk)) {
-      messages.push({
-        severity: "error",
-        message: `Data row is missing primaryKey '${pk}'`,
-        line: block.fenceLine + 1 + sepIdx + 1 + i,
-        blockLang: block.lang,
-        nodeName: tableName,
-      });
-      continue;
-    }
+      const obj = parsed as Record<string, unknown>;
+      if (!Object.prototype.hasOwnProperty.call(obj, pk)) {
+        messages.push({
+          severity: "error",
+          code: "CD_DATA_ROW_MISSING_PK",
+          message: `Data row is missing primaryKey '${pk}'`,
+          line: block.fenceLine + 1 + sepIdx + 1 + i,
+          blockLang: block.lang,
+          nodeName: tableName,
+        });
+        continue;
+      }
 
-    const pkValue = obj[pk];
-    const pkString = typeof pkValue === "string" ? pkValue : typeof pkValue === "number" ? String(pkValue) : null;
-    if (!pkString) {
-      messages.push({
-        severity: "error",
-        message: `primaryKey '${pk}' must be a string or number`,
-        line: block.fenceLine + 1 + sepIdx + 1 + i,
-        blockLang: block.lang,
-        nodeName: tableName,
-      });
-      continue;
-    }
-    if (seenKeys.has(pkString)) {
-      messages.push({
-        severity: "error",
-        message: `Duplicate primaryKey '${pkString}'`,
-        line: block.fenceLine + 1 + sepIdx + 1 + i,
-        blockLang: block.lang,
-        nodeName: tableName,
-      });
-      continue;
-    }
-    seenKeys.add(pkString);
+      const pkValue = obj[pk];
+      const pkString = typeof pkValue === "string" ? pkValue : typeof pkValue === "number" ? String(pkValue) : null;
+      if (!pkString) {
+        messages.push({
+          severity: "error",
+          code: "CD_DATA_PK_TYPE",
+          message: `primaryKey '${pk}' must be a string or number`,
+          line: block.fenceLine + 1 + sepIdx + 1 + i,
+          blockLang: block.lang,
+          nodeName: tableName,
+        });
+        continue;
+      }
+      if (seenKeys.has(pkString)) {
+        messages.push({
+          severity: "error",
+          code: "CD_DATA_PK_DUPLICATE",
+          message: `Duplicate primaryKey '${pkString}'`,
+          line: block.fenceLine + 1 + sepIdx + 1 + i,
+          blockLang: block.lang,
+          nodeName: tableName,
+        });
+        continue;
+      }
+      seenKeys.add(pkString);
 
-    const row: Record<string, unknown> = Object.create(null);
-    for (const [k, v] of Object.entries(obj)) {
-      if (k in columns) {
-        try {
-          row[k] = parseScalarByType(columns[k]!, v);
-        } catch (err) {
-          messages.push({
-            severity: "error",
-            message: `Invalid value for column '${k}': ${err instanceof Error ? err.message : String(err)}`,
-            line: block.fenceLine + 1 + sepIdx + 1 + i,
-            blockLang: block.lang,
-            nodeName: tableName,
-          });
+      const row: Record<string, unknown> = Object.create(null);
+      for (const [k, v] of Object.entries(obj)) {
+        if (k in columns) {
+          try {
+            row[k] = parseScalarByType(columns[k]!, v);
+          } catch (err) {
+            messages.push({
+              severity: "error",
+              code: "CD_DATA_INVALID_VALUE",
+              message: `Invalid value for column '${k}': ${err instanceof Error ? err.message : String(err)}`,
+              line: block.fenceLine + 1 + sepIdx + 1 + i,
+              blockLang: block.lang,
+              nodeName: tableName,
+            });
+            row[k] = v;
+          }
+        } else {
           row[k] = v;
         }
-      } else {
-        row[k] = v;
       }
-    }
 
-    rows.push(row);
+      rows.push(row);
+    }
   }
 
   const table: DataTable = {
@@ -288,6 +508,7 @@ export function parseDataBlock(block: FencedCodeBlock): { table: DataTable | nul
     primaryKey: pk,
     columns,
     rows,
+    ...(source ? { source } : {}),
     line: block.fenceLine + 1,
   };
 

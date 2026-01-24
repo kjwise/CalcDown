@@ -28,11 +28,24 @@ function safeGet(obj: unknown, prop: string): unknown {
   if ((typeof obj !== "object" && typeof obj !== "function") || obj === null) {
     throw new Error(`Cannot access property ${prop} on non-object`);
   }
+  if (!Object.prototype.hasOwnProperty.call(obj, prop)) {
+    throw new Error(`Unknown property: ${prop}`);
+  }
   return (obj as Record<string, unknown>)[prop];
 }
 
 interface EvalContext {
   stdFunctions: Set<Function>;
+}
+
+function assertFiniteNumber(v: unknown, label: string): number {
+  if (typeof v !== "number" || !Number.isFinite(v)) throw new Error(`${label} expects finite number`);
+  return v;
+}
+
+function assertFiniteResult(v: number): number {
+  if (!Number.isFinite(v)) throw new Error("Non-finite numeric result");
+  return v;
 }
 
 function collectStdFunctions(std: unknown): Set<Function> {
@@ -78,27 +91,26 @@ function evalExpr(expr: Expr, env: Record<string, unknown>, ctx: EvalContext): u
     }
     case "unary": {
       const v = evalExpr(expr.expr, env, ctx);
-      if (typeof v !== "number") throw new Error("Unary '-' expects number");
-      return -v;
+      const n = assertFiniteNumber(v, "Unary '-'");
+      return assertFiniteResult(-n);
     }
     case "binary": {
       const a = evalExpr(expr.left, env, ctx);
       const b = evalExpr(expr.right, env, ctx);
-      if (typeof a !== "number" || typeof b !== "number") {
-        throw new Error(`Binary '${expr.op}' expects numbers`);
-      }
+      const na = assertFiniteNumber(a, `Binary '${expr.op}'`);
+      const nb = assertFiniteNumber(b, `Binary '${expr.op}'`);
       switch (expr.op) {
         case "+":
-          return a + b;
+          return assertFiniteResult(na + nb);
         case "-":
-          return a - b;
+          return assertFiniteResult(na - nb);
         case "*":
-          return a * b;
+          return assertFiniteResult(na * nb);
         case "/":
-          if (b === 0) throw new Error("Division by zero");
-          return a / b;
+          if (nb === 0) throw new Error("Division by zero");
+          return assertFiniteResult(na / nb);
         case "**":
-          return a ** b;
+          return assertFiniteResult(na ** nb);
         default:
           throw new Error("Unsupported binary op");
       }
@@ -109,7 +121,7 @@ function evalExpr(expr: Expr, env: Record<string, unknown>, ctx: EvalContext): u
     }
     case "call": {
       if (!isStdMemberPath(expr.callee)) {
-        throw new Error("Only std.* function calls are supported in the 0.3 evaluator");
+        throw new Error("Only std.* function calls are supported in the 0.5 evaluator");
       }
       const fn = evalExpr(expr.callee, env, ctx);
       if (typeof fn !== "function") throw new Error("Callee is not a function");
@@ -145,6 +157,16 @@ function evalExpr(expr: Expr, env: Record<string, unknown>, ctx: EvalContext): u
       return _exhaustive;
     }
   }
+}
+
+function codeForEvalError(message: string): string {
+  if (message === "Division by zero") return "CD_CALC_DIV_ZERO";
+  if (message === "Non-finite numeric result") return "CD_CALC_NONFINITE";
+  if (message.startsWith("Unknown identifier:")) return "CD_CALC_UNKNOWN_IDENTIFIER";
+  if (message.startsWith("Unknown property:")) return "CD_CALC_UNKNOWN_PROPERTY";
+  if (message.startsWith("Upstream error in")) return "CD_CALC_UPSTREAM_ERROR";
+  if (message.includes("Only std.* function calls are supported")) return "CD_CALC_UNSAFE_CALL";
+  return "CD_CALC_EVAL";
 }
 
 export function evaluateNodes(
@@ -198,6 +220,7 @@ export function evaluateNodes(
   if (order.length !== nodes.length) {
     messages.push({
       severity: "error",
+      code: "CD_CALC_CYCLE",
       message: "Cycle detected in calc nodes (or unresolved dependencies)",
     });
   }
@@ -214,6 +237,7 @@ export function evaluateNodes(
       const msg = err instanceof Error ? err.message : String(err);
       messages.push({
         severity: "error",
+        code: codeForEvalError(msg),
         message: msg,
         line: node.line,
         nodeName: node.name,

@@ -82,6 +82,7 @@ export function parseInputsBlock(block: FencedCodeBlock): {
     if (!m) {
       messages.push({
         severity: "error",
+        code: "CD_INPUT_INVALID_LINE",
         message: `Invalid input line: ${withoutComment}`,
         line: lineNumber,
         blockLang: block.lang,
@@ -95,6 +96,7 @@ export function parseInputsBlock(block: FencedCodeBlock): {
     if (!name || !typeRaw || defaultGroup === undefined) {
       messages.push({
         severity: "error",
+        code: "CD_INPUT_INVALID_LINE",
         message: `Invalid input line: ${withoutComment}`,
         line: lineNumber,
         blockLang: block.lang,
@@ -108,6 +110,7 @@ export function parseInputsBlock(block: FencedCodeBlock): {
     if (seen.has(name)) {
       messages.push({
         severity: "error",
+        code: "CD_INPUT_DUPLICATE_NAME",
         message: `Duplicate input name: ${name}`,
         line: lineNumber,
         blockLang: block.lang,
@@ -123,6 +126,7 @@ export function parseInputsBlock(block: FencedCodeBlock): {
     } catch (err) {
       messages.push({
         severity: "error",
+        code: "CD_INPUT_INVALID_DEFAULT",
         message: err instanceof Error ? err.message : String(err),
         line: lineNumber,
         blockLang: block.lang,

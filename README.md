@@ -5,10 +5,10 @@ CalcDown is a text-first format for “spreadsheet-like” models: typed data + 
 ## Docs
 
 - `PURPOSE.md` — project goals and thesis
-- `docs/calcdown-0.3.md` — **current** file format + execution model
-- `docs/stdlib-0.3.md` — **current** standard library
+- `docs/calcdown-0.5.md` — **current** file format + execution model
+- `docs/stdlib-0.5.md` — **current** standard library
 - `docs/examples/*.calc.md` — executable examples (use latest spec)
-- Archived drafts: `docs/calcdown-0.[12].md`, `docs/stdlib-0.[12].md`
+- Archived drafts: `docs/calcdown-0.[1234].md`, `docs/stdlib-0.[1234].md`
 - Agent guidance: `AGENTS.md` (plus scoped files in subfolders)
 
 ## Status
@@ -24,6 +24,8 @@ This repo includes a minimal browser-first TypeScript parser/evaluator scaffold:
 - Static analysis: `make analyze` (or `npm run analyze`)
 - Tests: `make test` (built-in Node test runner + coverage thresholds)
 - Format examples: `make fmt` (normalizes `docs/examples/*.calc.md`)
+- Validate a document/project: `make validate ENTRY=docs/examples/mortgage.calc.md`
+- Semantic diff: `make diff A=docs/examples/mortgage.calc.md B=docs/examples/savings.calc.md`
 - CI-ish local check: `make check`
 - Repo dump: `make dump` (writes `build/dump_repo.md`, gitignored)
 - Demo: `make demo` then open `http://localhost:5173/demo/`

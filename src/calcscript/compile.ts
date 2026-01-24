@@ -71,6 +71,7 @@ function validateExpr(expr: Expr, messages: CalcdownMessage[], line: number, nod
       if (bannedProperties.has(expr.property)) {
         messages.push({
           severity: "error",
+          code: "CD_CALC_DISALLOWED_MEMBER",
           message: `Disallowed property access: ${expr.property}`,
           line,
           nodeName,
@@ -87,6 +88,7 @@ function validateExpr(expr: Expr, messages: CalcdownMessage[], line: number, nod
         if (bannedProperties.has(p.key)) {
           messages.push({
             severity: "error",
+            code: "CD_CALC_DISALLOWED_OBJECT_KEY",
             message: `Disallowed object key: ${p.key}`,
             line,
             nodeName,
@@ -101,6 +103,7 @@ function validateExpr(expr: Expr, messages: CalcdownMessage[], line: number, nod
         if (p === "std") {
           messages.push({
             severity: "error",
+            code: "CD_CALC_ARROW_PARAM_RESERVED",
             message: "The identifier 'std' is reserved and cannot be used as an arrow parameter",
             line,
             nodeName,
@@ -109,6 +112,7 @@ function validateExpr(expr: Expr, messages: CalcdownMessage[], line: number, nod
         if (bannedProperties.has(p)) {
           messages.push({
             severity: "error",
+            code: "CD_CALC_DISALLOWED_PARAM",
             message: `Disallowed arrow parameter name: ${p}`,
             line,
             nodeName,
@@ -117,6 +121,7 @@ function validateExpr(expr: Expr, messages: CalcdownMessage[], line: number, nod
         if (seen.has(p)) {
           messages.push({
             severity: "error",
+            code: "CD_CALC_DUPLICATE_PARAM",
             message: `Duplicate arrow parameter name: ${p}`,
             line,
             nodeName,
@@ -149,6 +154,7 @@ export function compileCalcScript(source: string, baseLine: number): {
     if (seen.has(decl.name)) {
       messages.push({
         severity: "error",
+        code: "CD_CALC_DUPLICATE_NODE",
         message: `Duplicate node name: ${decl.name}`,
         line: decl.line,
         nodeName: decl.name,
@@ -173,6 +179,7 @@ export function compileCalcScript(source: string, baseLine: number): {
     } catch (err) {
       messages.push({
         severity: "error",
+        code: "CD_CALC_PARSE_EXPR",
         message: err instanceof Error ? err.message : String(err),
         line: decl.line,
         nodeName: decl.name,

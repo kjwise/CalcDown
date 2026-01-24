@@ -18,7 +18,28 @@ test("std.math.sum", () => {
   assert.equal(std.math.sum([1, 2, 3]), 6);
   assert.equal(std.math.sum([]), 0);
   assert.throws(() => std.math.sum("nope"), /sum: expected array/);
-  assert.throws(() => std.math.sum([1, "2"]), /sum: expected number array/);
+  assert.throws(() => std.math.sum([1, "2"]), /sum: expected finite number array/);
+  assert.throws(() => std.math.sum([1, Number.POSITIVE_INFINITY]), /sum: expected finite number array/);
+});
+
+test("std.math.mean / minOf / maxOf / round", () => {
+  assert.equal(std.math.mean([2, 4, 6]), 4);
+  assert.throws(() => std.math.mean([]), /mean: empty array/);
+  assert.throws(() => std.math.mean([1, Number.POSITIVE_INFINITY]), /mean: expected finite number array/);
+
+  assert.equal(std.math.minOf([2, -1, 5]), -1);
+  assert.equal(std.math.maxOf([2, -1, 5]), 5);
+  assert.throws(() => std.math.minOf([]), /minOf: empty array/);
+  assert.throws(() => std.math.maxOf([]), /maxOf: empty array/);
+
+  assert.equal(std.math.round(1.2345, 2), 1.23);
+  assert.equal(std.math.round(1.235, 2), 1.24);
+  assert.equal(std.math.round(-1.5, 0), -2); // half away from zero
+  assert.equal(std.math.round(150, -2), 200);
+
+  assert.throws(() => std.math.round(Number.NaN), /round: x must be finite/);
+  assert.throws(() => std.math.round(1, 1.5), /round: digits must be integer/);
+  assert.throws(() => std.math.round(1, 99), /round: digits out of range/);
 });
 
 test("std.data.sequence", () => {
@@ -162,12 +183,161 @@ test("std.table.map", () => {
   assert.throws(() => std.table.map([null], () => 0), /map: expected row objects/);
 });
 
+test("std.table.filter / std.table.sortBy", () => {
+  const rows = [{ id: "a", n: 2 }, { id: "b", n: 1 }];
+  assert.deepEqual(std.table.filter(rows, (r) => r.n > 1).map((r) => r.id), ["a"]);
+  assert.deepEqual(std.table.sortBy(rows, "n").map((r) => r.id), ["b", "a"]);
+  assert.throws(() => std.table.filter("nope", () => true), /filter: expected rows array/);
+  assert.throws(() => std.table.filter(rows, "nope"), /filter: expected predicate function/);
+  assert.throws(() => std.table.filter([null], () => true), /filter: expected row objects/);
+});
+
 test("std.table.sum", () => {
   const rows = [{ n: 1 }, { n: 2.5 }, { n: -3 }];
   assert.equal(std.table.sum(rows, "n"), 0.5);
   assert.throws(() => std.table.sum(rows, "__proto__"), /col: disallowed key/);
   assert.throws(() => std.table.sum([{ n: "x" }], "n"), /sum: expected finite numbers/);
   assert.throws(() => std.table.sum([{ n: Number.POSITIVE_INFINITY }], "n"), /sum: expected finite numbers/);
+});
+
+test("std.table.groupBy / std.table.agg", () => {
+  const rows = [
+    { id: "a", cat: "Food", amount: 10 },
+    { id: "b", cat: "Travel", amount: 5 },
+    { id: "c", cat: "Food", amount: 2 },
+  ];
+
+  const groups = std.table.groupBy(rows, "cat");
+  assert.equal(groups.length, 2);
+  assert.equal(groups[0].key, "Food");
+  assert.equal(groups[0].rows.length, 2);
+  assert.equal(groups[1].key, "Travel");
+
+  const viaFn = std.table.groupBy(rows, (r) => r.cat);
+  assert.deepEqual(viaFn.map((g) => g.key), ["Food", "Travel"]);
+
+  const summary = std.table.agg(groups, (g) => ({
+    cat: g.key,
+    total: std.table.sum(g.rows, "amount"),
+    count: g.rows.length,
+  }));
+  assert.deepEqual(
+    summary.map((r) => Object.fromEntries(Object.entries(r))),
+    [
+      { cat: "Food", total: 12, count: 2 },
+      { cat: "Travel", total: 5, count: 1 },
+    ]
+  );
+
+  const numeric = std.table.groupBy(
+    [
+      { id: "x", n: 1 },
+      { id: "y", n: 2 },
+      { id: "z", n: 1 },
+    ],
+    "n"
+  );
+  assert.deepEqual(numeric.map((g) => g.key), [1, 2]);
+
+  assert.throws(() => std.table.groupBy("nope", "cat"), /groupBy: expected rows array/);
+  assert.throws(() => std.table.groupBy([null], "cat"), /groupBy: expected row objects/);
+  assert.throws(() => std.table.groupBy(rows, 123), /groupBy: key must be a string or function/);
+  assert.throws(() => std.table.groupBy(rows, "__proto__"), /groupBy: disallowed key/);
+  assert.throws(() => std.table.groupBy(rows, () => ({})), /groupBy: key values must be strings or numbers/);
+  assert.throws(
+    () => std.table.groupBy(rows, () => Number.POSITIVE_INFINITY),
+    /groupBy: key values must be finite numbers/
+  );
+
+  assert.throws(() => std.table.agg("nope", () => ({})), /agg: expected groups array/);
+  assert.throws(() => std.table.agg(groups, "nope"), /agg: expected mapper function/);
+  assert.throws(
+    () => std.table.agg([{ key: "x", rows: [] }], () => 123),
+    /agg: mapper must return an object/
+  );
+  assert.throws(
+    () => std.table.agg([{ key: "x", rows: "nope" }], () => ({})),
+    /agg: group.rows must be an array/
+  );
+  assert.throws(
+    () => std.table.agg([{ key: Number.POSITIVE_INFINITY, rows: [] }], () => ({})),
+    /agg: group.key must be string or finite number/
+  );
+});
+
+test("std.table.join", () => {
+  const left = [
+    { id: "a", n: 1 },
+    { id: "b", n: 2 },
+  ];
+  const right = [
+    { id: "a", label: "A" },
+    { id: "c", label: "C" },
+  ];
+
+  const inner = std.table.join(left, right, { leftKey: "id", rightKey: "id" });
+  assert.deepEqual(inner.map((r) => Object.fromEntries(Object.entries(r))), [
+    { id: "a", n: 1, right_id: "a", label: "A" },
+  ]);
+
+  const leftJoin = std.table.join(left, right, { leftKey: "id", rightKey: "id", how: "left" });
+  assert.deepEqual(
+    leftJoin.map((r) => Object.fromEntries(Object.entries(r))),
+    [
+      { id: "a", n: 1, right_id: "a", label: "A" },
+      { id: "b", n: 2 },
+    ]
+  );
+
+  const rightCollision = [{ id: "a", n: 999 }];
+  const withPrefix = std.table.join(left, rightCollision, { leftKey: "id", rightKey: "id", rightPrefix: "r_" });
+  assert.deepEqual(withPrefix.map((r) => Object.fromEntries(Object.entries(r))), [{ id: "a", n: 1, r_id: "a", r_n: 999 }]);
+
+  // Collision after prefixing.
+  assert.throws(
+    () =>
+      std.table.join([{ id: "a", right_id: "already" }], [{ id: "a" }], {
+        leftKey: "id",
+        rightKey: "id",
+      }),
+    /join: key collision/
+  );
+
+  // Numeric key join (covers numeric key paths).
+  const joinedNum = std.table.join([{ id: 1, n: 1 }], [{ id: 1, label: "one" }], { leftKey: "id", rightKey: "id" });
+  assert.deepEqual(joinedNum.map((r) => Object.fromEntries(Object.entries(r))), [{ id: 1, n: 1, right_id: 1, label: "one" }]);
+
+  assert.throws(() => std.table.join("nope", right, { leftKey: "id", rightKey: "id" }), /join: expected leftRows array/);
+  assert.throws(() => std.table.join(left, "nope", { leftKey: "id", rightKey: "id" }), /join: expected rightRows array/);
+  assert.throws(() => std.table.join(left, right, null), /join: expected opts object/);
+  assert.throws(() => std.table.join(left, right, { leftKey: "", rightKey: "id" }), /join: expected key string/);
+  assert.throws(() => std.table.join([{ id: {} }], right, { leftKey: "id", rightKey: "id" }), /join: left key values must be string or finite number/);
+});
+
+test("std.lookup.index / std.lookup.get / std.lookup.xlookup", () => {
+  const rows = [
+    { code: "A", value: 10 },
+    { code: "B", value: 20 },
+    { code: "B", value: 21 },
+  ];
+
+  const idx = std.lookup.index(rows, "code");
+  assert.deepEqual(std.lookup.get(idx, "A"), { code: "A", value: 10 });
+  assert.deepEqual(std.lookup.get(idx, "B"), { code: "B", value: 20 });
+  assert.throws(() => std.lookup.get(idx, "Z"), /lookup.get: key not found/);
+
+  assert.equal(std.lookup.xlookup("A", rows, "code", "value"), 10);
+  assert.equal(std.lookup.xlookup("Z", rows, "code", "value", 0), 0);
+  assert.throws(() => std.lookup.xlookup("Z", rows, "code", "value"), /lookup.xlookup: key not found/);
+
+  const nidx = std.lookup.index([{ id: 1, v: "one" }], "id");
+  assert.deepEqual(std.lookup.get(nidx, 1), { id: 1, v: "one" });
+  assert.throws(() => std.lookup.get(nidx, Number.POSITIVE_INFINITY), /lookup.get: key must be string or finite number/);
+
+  assert.throws(() => std.lookup.index("nope", "code"), /lookup.index: expected rows array/);
+  assert.throws(() => std.lookup.index(rows, "__proto__"), /lookup.index: disallowed key/);
+  assert.throws(() => std.lookup.get({}, "A"), /lookup.get: invalid index/);
+  assert.throws(() => std.lookup.xlookup("A", "nope", "code", "value"), /lookup.xlookup: expected rows array/);
 });
 
 test("std.date.addMonths", () => {
