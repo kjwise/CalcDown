@@ -9,6 +9,7 @@ import { coerceRowsToTable } from "../dist/data.js";
 import { validateViewsFromBlocks } from "../dist/view_contract.js";
 import { parseCsv } from "../dist/util/csv.js";
 import { parseIsoDate } from "../dist/util/date.js";
+import { CURRENT_CALCDOWN_VERSION } from "./version.js";
 
 function usage() {
   return [
@@ -932,7 +933,7 @@ async function cmdLock(entryArg, outPath) {
   dataSources.sort((a, b) => `${a.table}::${a.source}`.localeCompare(`${b.table}::${b.source}`));
 
   const lock = {
-    calcdown: "0.8",
+    calcdown: CURRENT_CALCDOWN_VERSION,
     entry: projectRelative(resolved.entryAbs),
     ...(resolved.manifestAbs ? { manifest: projectRelative(resolved.manifestAbs) } : {}),
     documents,
@@ -1060,7 +1061,7 @@ async function cmdExport(entryArg, opts = {}) {
   });
 
   const out = {
-    calcdown: "0.8",
+    calcdown: CURRENT_CALCDOWN_VERSION,
     entry: projectRelative(resolved.entryAbs),
     ...(resolved.manifestAbs ? { manifest: projectRelative(resolved.manifestAbs) } : {}),
     documents: docs.map((d) => projectRelative(d.file)),

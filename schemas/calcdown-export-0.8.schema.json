@@ -20,7 +20,7 @@
         "nodes": { "type": "object", "additionalProperties": true }
       }
     },
-    "views": { "type": "array", "items": { "$ref": "calcdown-view-0.7.schema.json" } },
+    "views": { "type": "array", "items": { "$ref": "calcdown-view-0.8.schema.json" } },
     "messages": {
       "type": "array",
       "items": {
@@ -41,4 +41,3 @@
     }
   }
 }
-

@@ -2,7 +2,7 @@
 # make/calcdown.mk — CalcDown tooling targets (validate/diff/conformance)
 # ==============================================================================
 
-.PHONY: validate validate-strict diff lock export export-strict examples-check conformance
+.PHONY: validate validate-strict diff lock export export-strict examples-check versions-check conformance
 
 ENTRY ?= docs/examples/mortgage.calc.md
 LOCK ?=
@@ -34,7 +34,11 @@ export-strict: build ## Export strictly (fail on warnings)
 examples-check: build ## Check docs/examples compatibility checklist
 	@$(NODE) tools/check_examples.js --check
 
+versions-check: build ## Check repo uses current CalcDown version
+	@$(NODE) tools/check_current_version.js
+
 conformance: build ## Run deterministic spec conformance suite
+	@$(NODE) tools/check_current_version.js
 	@$(NODE) tools/fmt_calcdown.js --check
 	@$(NODE) tools/check_examples.js --check
 	@$(NODE) tools/conformance.js

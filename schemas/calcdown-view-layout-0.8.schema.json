@@ -1,0 +1,47 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "calcdown-view-layout-0.8.schema.json",
+  "title": "CalcDown 0.8 Layout View",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["id", "type", "spec"],
+  "properties": {
+    "id": { "type": "string", "minLength": 1 },
+    "type": { "const": "layout" },
+    "library": { "type": "string", "const": "calcdown", "default": "calcdown" },
+    "spec": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["items"],
+      "properties": {
+        "title": { "type": "string" },
+        "direction": { "enum": ["row", "column"], "default": "column" },
+        "items": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "oneOf": [
+              {
+                "type": "object",
+                "additionalProperties": false,
+                "required": ["ref"],
+                "properties": { "ref": { "type": "string", "minLength": 1 } }
+              },
+              {
+                "type": "object",
+                "additionalProperties": false,
+                "required": ["spec"],
+                "properties": {
+                  "type": { "const": "layout" },
+                  "library": { "type": "string", "const": "calcdown", "default": "calcdown" },
+                  "spec": { "$ref": "calcdown-view-layout-0.8.schema.json#/properties/spec" }
+                }
+              }
+            ]
+          }
+        }
+      }
+    }
+  }
+}
+
