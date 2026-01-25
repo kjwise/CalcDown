@@ -1,0 +1,23 @@
+{
+  "calcdown": "0.8",
+  "documents": [
+    "conformance/cases/yaml-view-alias-disallowed/entry.calc.md"
+  ],
+  "entry": "conformance/cases/yaml-view-alias-disallowed/entry.calc.md",
+  "messages": [
+    {
+      "blockLang": "view",
+      "code": "CD_VIEW_YAML_ALIASES_NOT_ALLOWED",
+      "file": "conformance/cases/yaml-view-alias-disallowed/entry.calc.md",
+      "line": 11,
+      "message": "YAML anchors/aliases are not allowed in view blocks",
+      "severity": "error"
+    }
+  ],
+  "values": {
+    "inputs": {},
+    "nodes": {},
+    "tables": {}
+  },
+  "views": []
+}

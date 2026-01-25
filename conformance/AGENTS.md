@@ -44,6 +44,7 @@ The runner defaults to a fixed datetime (`--datetime 2026-01-24T00:00:00Z`) to k
 - `projection-missing-key` — projection error includes row index and message is stable
 - `sortby-runtime-order` — `data.sortBy` affects runtime row order deterministically
 - `yaml-view-block` — YAML `view` blocks parse + validate correctly
+- `yaml-view-alias-disallowed` — YAML anchors/aliases are rejected for safety
 - `view-unknown-source` — `view.source` validation catches missing table/node references
 - `external-data-hash-mismatch` — external `data.source` hash verification fails deterministically
 - `manifest-lock-enforced` — manifest-declared lockfile is honored by validate/export
@@ -53,4 +54,3 @@ The runner defaults to a fixed datetime (`--datetime 2026-01-24T00:00:00Z`) to k
 - Keep each case minimal: one feature/behavior per case.
 - Prefer local fixtures over network I/O.
 - Use stable identifiers, stable ordering, and stable error messages/codes (downstream tooling depends on them).
-

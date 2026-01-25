@@ -41,3 +41,13 @@ test("view blocks reject prototype pollution keys", () => {
   const res = parseViewBlock(block);
   assert.ok(res.messages.some((m) => m.severity === "error" && /Disallowed key: __proto__/.test(m.message)));
 });
+
+test("view blocks reject YAML anchors/aliases", () => {
+  const markdown = `---\ncalcdown: 0.5\n---\n\n\`\`\`view\n- &v\n  id: one\n  type: cards\n  library: calcdown\n  spec:\n    items:\n      - key: a\n- *v\n\`\`\`\n`;
+  const parsed = parseProgram(markdown);
+  const block = parsed.program.blocks.find((b) => b.lang === "view");
+  assert.ok(block);
+
+  const res = parseViewBlock(block);
+  assert.ok(res.messages.some((m) => m.severity === "error" && m.message.includes("YAML anchors/aliases are not allowed")));
+ });

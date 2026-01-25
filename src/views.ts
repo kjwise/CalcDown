@@ -13,18 +13,39 @@ export interface ParsedView {
 
 const bannedKeys = new Set(["__proto__", "prototype", "constructor"]);
 
-function sanitizeValue(raw: unknown, line: number): unknown {
-  if (Array.isArray(raw)) return raw.map((v) => sanitizeValue(v, line));
+const MAX_VIEW_NODES = 5000;
+const MAX_VIEW_DEPTH = 64;
+
+function sanitizeValue(raw: unknown, line: number, st: { seen: WeakSet<object>; nodes: number }, depth = 0): unknown {
+  if (depth > MAX_VIEW_DEPTH) throw new Error(`View is too deeply nested (max depth ${MAX_VIEW_DEPTH})`);
+  if (Array.isArray(raw)) {
+    if (st.seen.has(raw)) throw new Error("YAML anchors/aliases are not allowed in view blocks");
+    st.seen.add(raw);
+    st.nodes++;
+    if (st.nodes > MAX_VIEW_NODES) throw new Error(`View is too large (max nodes ${MAX_VIEW_NODES})`);
+    return raw.map((v) => sanitizeValue(v, line, st, depth + 1));
+  }
   if (!raw || typeof raw !== "object") return raw;
 
   // Preserve Dates as-is (js-yaml JSON_SCHEMA shouldn't produce them, but be defensive).
-  if (raw instanceof Date) return raw;
+  if (raw instanceof Date) {
+    if (st.seen.has(raw)) throw new Error("YAML anchors/aliases are not allowed in view blocks");
+    st.seen.add(raw);
+    st.nodes++;
+    if (st.nodes > MAX_VIEW_NODES) throw new Error(`View is too large (max nodes ${MAX_VIEW_NODES})`);
+    return raw;
+  }
 
   const obj = raw as Record<string, unknown>;
+  if (st.seen.has(obj)) throw new Error("YAML anchors/aliases are not allowed in view blocks");
+  st.seen.add(obj);
+  st.nodes++;
+  if (st.nodes > MAX_VIEW_NODES) throw new Error(`View is too large (max nodes ${MAX_VIEW_NODES})`);
+
   const out: Record<string, unknown> = Object.create(null);
   for (const key of Object.keys(obj)) {
     if (bannedKeys.has(key)) throw new Error(`Disallowed key: ${key}`);
-    out[key] = sanitizeValue(obj[key], line);
+    out[key] = sanitizeValue(obj[key], line, st, depth + 1);
   }
   return out;
 }
@@ -63,7 +84,7 @@ export function parseViewBlock(block: FencedCodeBlock): { views: ParsedView[]; m
     raw = JSON.parse(text);
   } catch (jsonErr) {
     try {
-      raw = yamlLoad(text, { schema: JSON_SCHEMA, maxAliasCount: 50 } as any);
+      raw = yamlLoad(text, { schema: JSON_SCHEMA });
     } catch (yamlErr) {
       const baseLine = block.fenceLine + 1;
       const yamlLine =
@@ -85,12 +106,19 @@ export function parseViewBlock(block: FencedCodeBlock): { views: ParsedView[]; m
 
   const baseLine = block.fenceLine + 1;
   try {
-    raw = sanitizeValue(raw, baseLine);
+    raw = sanitizeValue(raw, baseLine, { seen: new WeakSet(), nodes: 0 });
   } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    const code =
+      /YAML anchors\/aliases are not allowed/.test(msg)
+        ? "CD_VIEW_YAML_ALIASES_NOT_ALLOWED"
+        : /View is too (deeply nested|large)/.test(msg)
+          ? "CD_VIEW_LIMIT"
+          : "CD_VIEW_DISALLOWED_KEY";
     messages.push({
       severity: "error",
-      code: "CD_VIEW_DISALLOWED_KEY",
-      message: err instanceof Error ? err.message : String(err),
+      code,
+      message: msg,
       line: baseLine,
       blockLang: block.lang,
     });

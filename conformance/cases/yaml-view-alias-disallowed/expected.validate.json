@@ -1,0 +1,21 @@
+{
+  "messages": [
+    {
+      "blockLang": "view",
+      "code": "CD_VIEW_YAML_ALIASES_NOT_ALLOWED",
+      "file": "conformance/cases/yaml-view-alias-disallowed/entry.calc.md",
+      "line": 11,
+      "message": "YAML anchors/aliases are not allowed in view blocks",
+      "severity": "error"
+    }
+  ],
+  "summary": {
+    "documents": [
+      "conformance/cases/yaml-view-alias-disallowed/entry.calc.md"
+    ],
+    "entry": "conformance/cases/yaml-view-alias-disallowed/entry.calc.md",
+    "errors": 1,
+    "strict": true,
+    "warnings": 0
+  }
+}
