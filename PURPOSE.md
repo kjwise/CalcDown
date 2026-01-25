@@ -30,8 +30,10 @@ In practice, this means:
 - **AI-native editing:** readable formulas, explicit dependencies, strong validation.
 - **Git-native artifacts:** canonical formatting, stable row IDs, minimal diff noise.
 - **Deterministic execution:** sandboxed compute (no ambient I/O by default).
+- **Two-way editing:** an editor protocol for mapping runtime values back to source text and applying minimal patches.
 - **Typed data:** numbers/decimals/currency/percent/dates, constraints, and units.
 - **Web-first:** render and evaluate locally in a browser using a safe TS/JS subset.
+- **Deterministic tooling + conformance:** format, validate, lock/export, semantic diff, and golden checks to keep models reviewable and CI-friendly.
 
 ## Non-goals (initially)
 
@@ -45,4 +47,4 @@ In practice, this means:
 - **Tables:** typed, ID-stable row sets (data or computed).
 - **Nodes:** named computed values (scalars/columns/tables).
 - **Views:** declarative charts/dashboards derived from nodes and tables.
-
+- **Editor protocol:** source maps + patch operations (`updateInput`, `updateTableCell`) so UIs can write back safely.

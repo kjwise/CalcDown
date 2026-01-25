@@ -76,6 +76,7 @@ const final_balance = std.data.last(balances);
 - `PURPOSE.md` — project goals and thesis
 - `docs/calcdown-0.8.md` — **current** file format + editor protocol
 - `docs/stdlib-0.8.md` — **current** standard library
+- `docs/integration.md` — embedding CalcDown in other tools
 - `docs/examples/*.calc.md` — executable examples (use latest spec)
 - Archived drafts: `docs/calcdown-0.[1234567].md`, `docs/stdlib-0.[1234567].md`
 - Agent guidance: `AGENTS.md` (plus scoped files in subfolders)
@@ -114,3 +115,9 @@ The `make/*` targets wrap small scripts in `tools/`:
 - Semantic diff: `make diff A=docs/examples/mortgage.calc.md B=docs/examples/savings.calc.md`
 - Single-file repo dump for other LLMs: `make dump` (writes `build/dump_repo.md`, gitignored)
 - Conformance suite (golden outputs): `make conformance`
+
+## Integrating (browser)
+
+The demos are now thin wrappers around `src/web/` (compiled to `dist/web/`), which is intended as the “integration layer” for embedding CalcDown in other tools (Markdown renderers, editor extensions, etc.).
+
+Start here: `docs/integration.md`

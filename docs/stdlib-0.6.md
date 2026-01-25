@@ -1,7 +1,7 @@
 # CalcDown Standard Library 0.6 (Draft)
 
-**This draft is SUPERSEDED**  
-Current version → [stdlib 0.7](stdlib-0.7.md) — [CalcDown 0.7](calcdown-0.7.md)
+**This draft is SUPERSEDED.**  
+Current version → [stdlib 0.8](stdlib-0.8.md) — [CalcDown 0.8](calcdown-0.8.md)
 
 Status: **Draft / experimental**. This document specifies the standard library object available as `std` when evaluating CalcScript expressions in CalcDown 0.6.
 
