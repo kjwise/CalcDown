@@ -36,6 +36,7 @@ function safeGet(obj: unknown, prop: string): unknown {
 
 interface EvalContext {
   stdFunctions: Set<Function>;
+  tablePkByArray: WeakMap<object, { primaryKey: string }>;
 }
 
 function assertFiniteNumber(v: unknown, label: string): number {
@@ -232,13 +233,21 @@ function evalExpr(expr: Expr, env: Record<string, unknown>, ctx: EvalContext): u
           // Preserve "own properties only" semantics for arrays to avoid leaking mutators like `.push`.
           throw new Error(`Unknown property: ${prop}`);
         }
+        const pkKey = ctx.tablePkByArray.get(obj)?.primaryKey ?? null;
         const out = new Array<unknown>(obj.length);
         for (let i = 0; i < obj.length; i++) {
           try {
             out[i] = safeGet(obj[i], prop);
           } catch (err) {
             const msg = err instanceof Error ? err.message : String(err);
-            throw new Error(`Row ${i}: ${msg}`);
+            const row = obj[i];
+            let rowLabel = `Row ${i}`;
+            if (pkKey && row && typeof row === "object" && !Array.isArray(row) && Object.prototype.hasOwnProperty.call(row, pkKey)) {
+              const pkRaw = (row as Record<string, unknown>)[pkKey];
+              const pk = typeof pkRaw === "string" ? pkRaw : typeof pkRaw === "number" && Number.isFinite(pkRaw) ? String(pkRaw) : null;
+              if (pk) rowLabel = `Row (${pkKey} = ${JSON.stringify(pk)})`;
+            }
+            throw new Error(`${rowLabel}: ${msg}`);
           }
         }
         return out;
@@ -298,12 +307,13 @@ function codeForEvalError(message: string): string {
 export function evaluateNodes(
   nodes: { name: string; expr?: Expr; dependencies: string[]; line: number }[],
   inputs: Record<string, unknown>,
-  std: unknown
+  std: unknown,
+  tablePkByArray: WeakMap<object, { primaryKey: string }>
 ): EvalResult {
   const messages: CalcdownMessage[] = [];
   const values: Record<string, unknown> = Object.create(null);
   const env: Record<string, unknown> = Object.assign(Object.create(null), inputs, { std });
-  const ctx: EvalContext = { stdFunctions: collectStdFunctions(std) };
+  const ctx: EvalContext = { stdFunctions: collectStdFunctions(std), tablePkByArray };
 
   const nodeByName = new Map(nodes.map((n) => [n.name, n]));
   const nodeNames = new Set(nodes.map((n) => n.name));

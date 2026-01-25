@@ -27,7 +27,7 @@ test("CalcScript column projection + numeric vectorization", () => {
   assert.deepEqual(evaluated.values.neg, [-2, -1]);
 });
 
-test("CalcScript column projection reports missing keys with row index", () => {
+test("CalcScript column projection reports missing keys with primaryKey when available", () => {
   const src = `---\ncalcdown: 0.7\n---\n\n\`\`\`data\nname: items\nprimaryKey: id\ncolumns:\n  id: string\n  qty: integer\n  unit_price: number\n---\n{\"id\":\"a\",\"qty\":2,\"unit_price\":10}\n{\"id\":\"b\",\"qty\":1}\n\`\`\`\n\n\`\`\`calc\nconst bad = items.unit_price;\n\`\`\`\n`;
   const parsed = parseProgram(src);
   const evaluated = evaluateProgram(parsed.program, {});
@@ -35,7 +35,7 @@ test("CalcScript column projection reports missing keys with row index", () => {
   const err = evaluated.messages.find((m) => m.severity === "error" && m.nodeName === "bad");
   assert.ok(err);
   assert.equal(err.code, "CD_CALC_UNKNOWN_PROPERTY");
-  assert.match(err.message, /Row 1:/);
+  assert.match(err.message, /Row \(id = "b"\):/);
   assert.match(err.message, /Unknown property: unit_price/);
 });
 

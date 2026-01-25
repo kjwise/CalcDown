@@ -343,10 +343,17 @@ export function evaluateProgram(
     }
   }
 
+  const tablePkByArray = new WeakMap<object, { primaryKey: string }>();
+  for (const t of program.tables) {
+    const rows = tables[t.name];
+    if (Array.isArray(rows)) tablePkByArray.set(rows, { primaryKey: t.primaryKey });
+  }
+
   const evalRes = evaluateNodes(
     program.nodes,
     Object.assign(Object.create(null), inputs, tables),
-    runtimeStd
+    runtimeStd,
+    tablePkByArray
   );
   messages.push(...evalRes.messages);
 

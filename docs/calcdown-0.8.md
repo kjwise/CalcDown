@@ -49,6 +49,8 @@ If a row fails to parse or fails validation (missing/invalid/duplicate primary k
 
 For external `data` tables (`source: ...`), `rowMap` MUST be omitted.
 
+Note on formatting vs runtime ordering: The canonical formatter sorts inline JSONL rows by `primaryKey` to produce stable Git diffs. The optional `sortBy` header key controls runtime row presentation order only and is not applied during formatting.
+
 ## 3) The patching protocol
 
 Implementations SHOULD provide a patch module that applies atomic edits to CalcDown source text while preserving comments and minimizing unrelated changes.
@@ -102,4 +104,3 @@ Implementations SHOULD provide deterministic tooling that supports AI-driven dev
 - `calcdown validate --strict` — warnings treated as errors
 - `calcdown fmt --check` — no-write mode, fails if changes would be made
 - A golden-file conformance suite that runs validation/export on known projects and compares JSON outputs byte-for-byte
-

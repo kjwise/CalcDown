@@ -9,7 +9,7 @@
       "code": "CD_CALC_UNKNOWN_PROPERTY",
       "file": "conformance/cases/projection-missing-key/entry.calc.md",
       "line": 21,
-      "message": "Row 1: Unknown property: unit_price",
+      "message": "Row (id = \"b\"): Unknown property: unit_price",
       "nodeName": "bad",
       "severity": "error"
     }
