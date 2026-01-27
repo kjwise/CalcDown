@@ -3,8 +3,12 @@ export type Token =
   | { type: "string"; value: string; pos: number }
   | { type: "boolean"; value: boolean; pos: number }
   | { type: "identifier"; value: string; pos: number }
-  | { type: "op"; value: "+" | "-" | "*" | "/" | "**" | "&"; pos: number }
-  | { type: "punct"; value: "(" | ")" | "." | "," | "{" | "}" | ":"; pos: number }
+  | {
+      type: "op";
+      value: "+" | "-" | "*" | "/" | "**" | "&" | "==" | "!=" | "<" | "<=" | ">" | ">=" | "&&" | "||" | "!";
+      pos: number;
+    }
+  | { type: "punct"; value: "(" | ")" | "." | "," | "{" | "}" | ":" | "?"; pos: number }
   | { type: "arrow"; pos: number }
   | { type: "eof"; pos: number };
 
@@ -63,7 +67,7 @@ export class Tokenizer {
     const ch = this.src[this.i];
     if (ch === undefined) return { type: "eof", pos };
 
-    if (ch === "(" || ch === ")" || ch === "." || ch === "," || ch === "{" || ch === "}" || ch === ":") {
+    if (ch === "(" || ch === ")" || ch === "." || ch === "," || ch === "{" || ch === "}" || ch === ":" || ch === "?") {
       this.i++;
       return { type: "punct", value: ch, pos };
     }
@@ -73,7 +77,44 @@ export class Tokenizer {
       return { type: "arrow", pos };
     }
 
-    if (ch === "+" || ch === "-" || ch === "/" || ch === "*" || ch === "&") {
+    const two = this.src.slice(this.i, this.i + 2);
+    const three = this.src.slice(this.i, this.i + 3);
+
+    if (three === "===") {
+      this.i += 3;
+      return { type: "op", value: "==", pos };
+    }
+    if (three === "!==") {
+      this.i += 3;
+      return { type: "op", value: "!=", pos };
+    }
+
+    if (two === "&&") {
+      this.i += 2;
+      return { type: "op", value: "&&", pos };
+    }
+    if (two === "||") {
+      this.i += 2;
+      return { type: "op", value: "||", pos };
+    }
+    if (two === "==") {
+      this.i += 2;
+      return { type: "op", value: "==", pos };
+    }
+    if (two === "!=") {
+      this.i += 2;
+      return { type: "op", value: "!=", pos };
+    }
+    if (two === ">=") {
+      this.i += 2;
+      return { type: "op", value: ">=", pos };
+    }
+    if (two === "<=") {
+      this.i += 2;
+      return { type: "op", value: "<=", pos };
+    }
+
+    if (ch === "+" || ch === "-" || ch === "/" || ch === "*" || ch === "&" || ch === "<" || ch === ">" || ch === "!") {
       if (ch === "*" && this.src[this.i + 1] === "*") {
         this.i += 2;
         return { type: "op", value: "**", pos };
@@ -83,6 +124,9 @@ export class Tokenizer {
       if (ch === "/") return { type: "op", value: "/", pos };
       if (ch === "+") return { type: "op", value: "+", pos };
       if (ch === "&") return { type: "op", value: "&", pos };
+      if (ch === "<") return { type: "op", value: "<", pos };
+      if (ch === ">") return { type: "op", value: ">", pos };
+      if (ch === "!") return { type: "op", value: "!", pos };
       return { type: "op", value: "-", pos };
     }
 

@@ -31,7 +31,79 @@ function parseArrow(t: Tokenizer): Expr {
     }
   }
   t.reset(mark);
-  return parseConcat(t);
+  return parseConditional(t);
+}
+
+function parseConditional(t: Tokenizer): Expr {
+  const test = parseLogicalOr(t);
+  const tok = t.peek();
+  if (tok.type === "punct" && tok.value === "?") {
+    t.next();
+    const consequent = parseArrow(t);
+    const colon = t.next();
+    if (!(colon.type === "punct" && colon.value === ":")) {
+      throw new CalcScriptSyntaxError("Expected ':' in conditional expression", colon.pos);
+    }
+    const alternate = parseArrow(t);
+    return { kind: "conditional", test, consequent, alternate };
+  }
+  return test;
+}
+
+function parseLogicalOr(t: Tokenizer): Expr {
+  let left = parseLogicalAnd(t);
+  while (true) {
+    const tok = t.peek();
+    if (tok.type === "op" && tok.value === "||") {
+      t.next();
+      const right = parseLogicalAnd(t);
+      left = { kind: "binary", op: tok.value, left, right };
+      continue;
+    }
+    return left;
+  }
+}
+
+function parseLogicalAnd(t: Tokenizer): Expr {
+  let left = parseEquality(t);
+  while (true) {
+    const tok = t.peek();
+    if (tok.type === "op" && tok.value === "&&") {
+      t.next();
+      const right = parseEquality(t);
+      left = { kind: "binary", op: tok.value, left, right };
+      continue;
+    }
+    return left;
+  }
+}
+
+function parseEquality(t: Tokenizer): Expr {
+  let left = parseComparison(t);
+  while (true) {
+    const tok = t.peek();
+    if (tok.type === "op" && (tok.value === "==" || tok.value === "!=")) {
+      t.next();
+      const right = parseComparison(t);
+      left = { kind: "binary", op: tok.value, left, right };
+      continue;
+    }
+    return left;
+  }
+}
+
+function parseComparison(t: Tokenizer): Expr {
+  let left = parseConcat(t);
+  while (true) {
+    const tok = t.peek();
+    if (tok.type === "op" && (tok.value === "<" || tok.value === "<=" || tok.value === ">" || tok.value === ">=")) {
+      t.next();
+      const right = parseConcat(t);
+      left = { kind: "binary", op: tok.value, left, right };
+      continue;
+    }
+    return left;
+  }
 }
 
 function tryParseArrowParams(t: Tokenizer): string[] | null {
@@ -128,10 +200,10 @@ function parsePower(t: Tokenizer): Expr {
 
 function parseUnary(t: Tokenizer): Expr {
   const tok = t.peek();
-  if (tok.type === "op" && tok.value === "-") {
+  if (tok.type === "op" && (tok.value === "-" || tok.value === "!")) {
     t.next();
     const expr = parseUnary(t);
-    return { kind: "unary", op: "-", expr };
+    return { kind: "unary", op: tok.value, expr };
   }
   return parsePostfix(t);
 }

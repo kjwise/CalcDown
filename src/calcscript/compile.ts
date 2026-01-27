@@ -29,6 +29,11 @@ function collectDependencies(expr: Expr, out: Set<string>): void {
       collectDependencies(expr.left, out);
       collectDependencies(expr.right, out);
       return;
+    case "conditional":
+      collectDependencies(expr.test, out);
+      collectDependencies(expr.consequent, out);
+      collectDependencies(expr.alternate, out);
+      return;
     case "member":
       collectDependencies(expr.object, out);
       return;
@@ -66,6 +71,11 @@ function validateExpr(expr: Expr, messages: CalcdownMessage[], line: number, nod
     case "binary":
       validateExpr(expr.left, messages, line, nodeName);
       validateExpr(expr.right, messages, line, nodeName);
+      return;
+    case "conditional":
+      validateExpr(expr.test, messages, line, nodeName);
+      validateExpr(expr.consequent, messages, line, nodeName);
+      validateExpr(expr.alternate, messages, line, nodeName);
       return;
     case "member":
       if (bannedProperties.has(expr.property)) {

@@ -14,6 +14,24 @@ test("CalcScript '&' concatenation (scalar/array) and precedence", () => {
   assert.deepEqual(evaluated.values.ws, ["X1Y1", "X2Y2", "X3Y3"]);
 });
 
+test("CalcScript comparisons, boolean logic, and ternary", () => {
+  const src = `---\ncalcdown: 0.9\n---\n\n\`\`\`inputs\n# Age in years\nage    : integer = 25\nsex    : string = \"female\"\norigin : string = \"Europe\"\n\`\`\`\n\n\`\`\`calc\nconst base_value = 20;\n\nconst age_bonus = (age >= 18 && age <= 26) ? 40 :\n  (age > 26 && age <= 35) ? 25 :\n  (age > 35 && age <= 50) ? 10 :\n  (age < 18) ? 5 : 0;\n\nconst sex_bonus = (sex == \"female\" || sex == \"Female\") ? 30 : 10;\n\nconst origin_bonus = (origin == \"Middle East\") ? 25 :\n  (origin == \"North America\") ? 15 :\n  (origin == \"Europe\") ? 20 :\n  (origin == \"Asia\") ? 15 :\n  (origin == \"Africa\") ? 20 : 10;\n\nconst total_camels = base_value + age_bonus + sex_bonus + origin_bonus;\n\nconst precedence_ok = true || false && false;\nconst not_ok = !false;\nconst strict_ok = 1 === 1;\n\`\`\`\n`;
+
+  const parsed = parseProgram(src);
+  assert.deepEqual(parsed.messages, []);
+
+  const evaluated = evaluateProgram(parsed.program, {});
+  assert.deepEqual(evaluated.messages, []);
+
+  assert.equal(evaluated.values.age_bonus, 40);
+  assert.equal(evaluated.values.sex_bonus, 30);
+  assert.equal(evaluated.values.origin_bonus, 20);
+  assert.equal(evaluated.values.total_camels, 110);
+  assert.equal(evaluated.values.precedence_ok, true);
+  assert.equal(evaluated.values.not_ok, true);
+  assert.equal(evaluated.values.strict_ok, true);
+});
+
 test("CalcScript column projection + numeric vectorization", () => {
   const src = `---\ncalcdown: 0.7\n---\n\n\`\`\`data\nname: items\nprimaryKey: id\ncolumns:\n  id: string\n  qty: integer\n  unit_price: number\n---\n{\"id\":\"a\",\"qty\":2,\"unit_price\":10}\n{\"id\":\"b\",\"qty\":1,\"unit_price\":5}\n\`\`\`\n\n\`\`\`calc\nconst qty = items.qty;\nconst prices = items.unit_price;\nconst totals = qty * prices;\nconst subtotal = std.math.sum(totals);\nconst doubled = totals * 2;\nconst neg = -qty;\n\`\`\`\n`;
   const parsed = parseProgram(src);

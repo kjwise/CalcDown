@@ -5,6 +5,7 @@ export type Expr =
   | IdentifierExpr
   | UnaryExpr
   | BinaryExpr
+  | ConditionalExpr
   | MemberExpr
   | CallExpr
   | ArrowFunctionExpr
@@ -32,15 +33,22 @@ export interface IdentifierExpr {
 
 export interface UnaryExpr {
   kind: "unary";
-  op: "-";
+  op: "-" | "!";
   expr: Expr;
 }
 
 export interface BinaryExpr {
   kind: "binary";
-  op: "+" | "-" | "*" | "/" | "**" | "&";
+  op: "+" | "-" | "*" | "/" | "**" | "&" | "==" | "!=" | "<" | "<=" | ">" | ">=" | "&&" | "||";
   left: Expr;
   right: Expr;
+}
+
+export interface ConditionalExpr {
+  kind: "conditional";
+  test: Expr;
+  consequent: Expr;
+  alternate: Expr;
 }
 
 export interface MemberExpr {

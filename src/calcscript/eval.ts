@@ -49,6 +49,62 @@ function assertFiniteResult(v: number): number {
   return v;
 }
 
+function assertBoolean(v: unknown, label: string): boolean {
+  if (typeof v !== "boolean") throw new Error(`${label} expects boolean`);
+  return v;
+}
+
+function assertValidDate(v: unknown, label: string): Date {
+  if (!(v instanceof Date) || Number.isNaN(v.getTime())) throw new Error(`${label} expects valid Date`);
+  return v;
+}
+
+function compareScalars(op: "<" | "<=" | ">" | ">=", a: unknown, b: unknown): boolean {
+  if (typeof a === "number" && typeof b === "number") {
+    const aa = assertFiniteNumber(a, `Binary '${op}'`);
+    const bb = assertFiniteNumber(b, `Binary '${op}'`);
+    if (op === "<") return aa < bb;
+    if (op === "<=") return aa <= bb;
+    if (op === ">") return aa > bb;
+    return aa >= bb;
+  }
+
+  if (a instanceof Date && b instanceof Date) {
+    const aa = assertValidDate(a, `Binary '${op}'`).getTime();
+    const bb = assertValidDate(b, `Binary '${op}'`).getTime();
+    if (op === "<") return aa < bb;
+    if (op === "<=") return aa <= bb;
+    if (op === ">") return aa > bb;
+    return aa >= bb;
+  }
+
+  throw new Error(`Binary '${op}' expects numbers or dates`);
+}
+
+function strictEquals(a: unknown, b: unknown): boolean {
+  if (typeof a === "number" && typeof b === "number") {
+    const aa = assertFiniteNumber(a, "Binary '=='");
+    const bb = assertFiniteNumber(b, "Binary '=='");
+    return aa === bb;
+  }
+  if (typeof a === "string" && typeof b === "string") return a === b;
+  if (typeof a === "boolean" && typeof b === "boolean") return a === b;
+  if (a instanceof Date && b instanceof Date) {
+    const aa = assertValidDate(a, "Binary '=='").getTime();
+    const bb = assertValidDate(b, "Binary '=='").getTime();
+    return aa === bb;
+  }
+  if (a === null && b === null) return true;
+  if (a === undefined && b === undefined) return true;
+
+  if (a === null || a === undefined || b === null || b === undefined) return false;
+  if (typeof a === "number" || typeof a === "string" || typeof a === "boolean") return false;
+  if (typeof b === "number" || typeof b === "string" || typeof b === "boolean") return false;
+  if (a instanceof Date || b instanceof Date) return false;
+
+  throw new Error("Binary '==' expects comparable scalars");
+}
+
 function concatPartToString(v: unknown, label: string): string {
   if (typeof v === "string") return v;
   if (typeof v === "number") {
@@ -199,9 +255,22 @@ function evalExpr(expr: Expr, env: Record<string, unknown>, ctx: EvalContext): u
     }
     case "unary": {
       const v = evalExpr(expr.expr, env, ctx);
-      return evalUnaryMinus(v, "Unary '-'");
+      if (expr.op === "-") return evalUnaryMinus(v, "Unary '-'");
+      if (expr.op === "!") return !assertBoolean(v, "Unary '!'");
+      throw new Error("Unsupported unary op");
     }
     case "binary": {
+      if (expr.op === "&&") {
+        const a = assertBoolean(evalExpr(expr.left, env, ctx), "Binary '&&'");
+        if (!a) return false;
+        return assertBoolean(evalExpr(expr.right, env, ctx), "Binary '&&'");
+      }
+      if (expr.op === "||") {
+        const a = assertBoolean(evalExpr(expr.left, env, ctx), "Binary '||'");
+        if (a) return true;
+        return assertBoolean(evalExpr(expr.right, env, ctx), "Binary '||'");
+      }
+
       const a = evalExpr(expr.left, env, ctx);
       const b = evalExpr(expr.right, env, ctx);
       switch (expr.op) {
@@ -220,9 +289,22 @@ function evalExpr(expr: Expr, env: Record<string, unknown>, ctx: EvalContext): u
           });
         case "**":
           return evalNumericBinary("**", a, b, (x, y) => x ** y);
+        case "<":
+        case "<=":
+        case ">":
+        case ">=":
+          return compareScalars(expr.op, a, b);
+        case "==":
+          return strictEquals(a, b);
+        case "!=":
+          return !strictEquals(a, b);
         default:
           throw new Error("Unsupported binary op");
       }
+    }
+    case "conditional": {
+      const test = assertBoolean(evalExpr(expr.test, env, ctx), "Conditional test");
+      return test ? evalExpr(expr.consequent, env, ctx) : evalExpr(expr.alternate, env, ctx);
     }
     case "member": {
       const obj = evalExpr(expr.object, env, ctx);
