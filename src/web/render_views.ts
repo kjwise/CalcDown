@@ -1,7 +1,7 @@
 import type { DataTable } from "../types.js";
-import type { CalcdownView, LayoutItem, LayoutSpec, TableViewColumn, ValueFormat } from "../view_contract.js";
+import { defaultLabelForKey, type CalcdownView, type LayoutItem, type LayoutSpec, type TableViewColumn, type ValueFormat } from "../view_contract.js";
 import { formatFormattedValue } from "./format.js";
-import { buildBarChartCard, buildLineChartCard, type ChartCardClasses } from "./charts.js";
+import { buildBarChartCard, buildLineChartCard, type ChartCardClasses, type ChartSeriesSpec } from "./charts.js";
 
 export type ChartMode = "spec" | "line" | "bar";
 
@@ -65,10 +65,12 @@ function defaultColumnsForSource(sourceName: string, rows: Record<string, unknow
   const schema = schemas ? schemas[sourceName] : undefined;
   if (schema) {
     const keys = Object.keys(schema.columns);
-    return keys.map((k) => ({ key: k, label: k }));
+    return keys.map((k) => ({ key: k, label: defaultLabelForKey(k) }));
   }
   if (rows.length === 0) return [];
-  return Object.keys(rows[0] ?? {}).sort((a, b) => a.localeCompare(b)).map((k) => ({ key: k, label: k }));
+  return Object.keys(rows[0] ?? {})
+    .sort((a, b) => a.localeCompare(b))
+    .map((k) => ({ key: k, label: defaultLabelForKey(k) }));
 }
 
 function buildTableView(
@@ -240,15 +242,31 @@ function buildLayoutItem(
     if (!Array.isArray(raw)) return null;
     const rows = raw.filter((r) => r && typeof r === "object" && !Array.isArray(r)) as Record<string, unknown>[];
     const xField = target.spec.x.key;
-    const yField = target.spec.y.key;
+    const ySpecs = Array.isArray(target.spec.y) ? target.spec.y : [target.spec.y];
+    const series: ChartSeriesSpec[] = ySpecs.map((s) => ({
+      key: s.key,
+      label: s.label,
+      ...(s.format ? { format: s.format as ValueFormat } : {}),
+    }));
     const title = target.spec.title ?? target.id;
     const mark = ctx.chartMode === "spec" ? target.spec.kind : ctx.chartMode;
+    const ySummary = series.map((s) => s.key).join(", ");
     const subtitle =
-      mark === "line" ? `${sourceName}.${yField} over ${xField}` : `${sourceName}.${yField} by ${xField}`;
+      mark === "line" ? `${sourceName}.${ySummary} over ${xField}` : `${sourceName}.${ySummary} by ${xField}`;
 
     const classes: Partial<ChartCardClasses> = Object.assign(Object.create(null), { container: "view", title: "view-title", subtitle: "muted" });
-    if (mark === "line") return buildLineChartCard({ title, subtitle, rows, xField, yField, classes });
-    if (mark === "bar") return buildBarChartCard({ title, subtitle, rows, xField, yField, classes });
+    const chartOpts = {
+      title,
+      subtitle,
+      rows,
+      xField,
+      xLabel: target.spec.x.label,
+      series,
+      classes,
+      ...(target.spec.x.format ? { xFormat: target.spec.x.format as ValueFormat } : {}),
+    };
+    if (mark === "line") return buildLineChartCard(chartOpts);
+    if (mark === "bar") return buildBarChartCard(chartOpts);
     return null;
   }
 

@@ -67,7 +67,7 @@ export interface CalcdownChartView {
     title?: string;
     kind: "line" | "bar";
     x: ChartAxisSpec;
-    y: ChartAxisSpec;
+    y: ChartAxisSpec | ChartAxisSpec[];
   };
   line: number;
 }
@@ -122,6 +122,43 @@ function asString(v: unknown): string | null {
 
 function sanitizeId(id: string): string {
   return id.trim();
+}
+
+const labelAbbreviations = new Map<string, string>([
+  ["id", "ID"],
+  ["pk", "PK"],
+  ["url", "URL"],
+  ["api", "API"],
+  ["ui", "UI"],
+  ["ip", "IP"],
+  ["csv", "CSV"],
+  ["json", "JSON"],
+  ["jsonl", "JSONL"],
+  ["yaml", "YAML"],
+  ["sse", "SSE"],
+  ["http", "HTTP"],
+  ["https", "HTTPS"],
+  ["sha256", "SHA-256"],
+]);
+
+export function defaultLabelForKey(key: string): string {
+  const raw = key.trim();
+  if (!raw) return key;
+  if (!raw.includes("_") && !raw.includes("-")) return key;
+
+  const parts = raw.split(/[_-]+/).filter(Boolean);
+  if (parts.length === 0) return key;
+
+  const words = parts.map((part) => {
+    const lower = part.toLowerCase();
+    const abbr = labelAbbreviations.get(lower);
+    if (abbr) return abbr;
+    const first = part[0];
+    if (!first) return part;
+    return first.toUpperCase() + part.slice(1);
+  });
+
+  return words.join(" ");
 }
 
 function validateDigits(raw: unknown): number | null {
@@ -185,7 +222,7 @@ function validateCardsView(view: ParsedView, messages: CalcdownMessage[]): Calcd
     if (!isPlainObject(it)) continue;
     const key = asString(it.key);
     if (!key) continue;
-    const label = asString(it.label) ?? key;
+    const label = asString(it.label) ?? defaultLabelForKey(key);
     const format = validateFormat(it.format, line, messages) ?? undefined;
     items.push(Object.assign(Object.create(null), { key, label, ...(format ? { format } : {}) }));
   }
@@ -216,7 +253,7 @@ function validateTableColumns(raw: unknown, line: number, messages: CalcdownMess
       err(messages, line, "CD_VIEW_SCHEMA_DISALLOWED_KEY", `Disallowed column key: ${key}`);
       continue;
     }
-    const label = asString(c.label) ?? key;
+    const label = asString(c.label) ?? defaultLabelForKey(key);
     const format = validateFormat(c.format, line, messages) ?? undefined;
     cols.push(Object.assign(Object.create(null), { key, label, ...(format ? { format } : {}) }));
   }
@@ -267,9 +304,19 @@ function validateAxisSpec(raw: unknown, line: number, messages: CalcdownMessage[
     err(messages, line, "CD_VIEW_SCHEMA_DISALLOWED_KEY", `Disallowed axis key: ${key}`);
     return null;
   }
-  const label = asString(raw.label) ?? key;
+  const label = asString(raw.label) ?? defaultLabelForKey(key);
   const format = validateFormat(raw.format, line, messages) ?? undefined;
   return Object.assign(Object.create(null), { key, label, ...(format ? { format } : {}) });
+}
+
+function validateAxisSpecList(raw: unknown, line: number, messages: CalcdownMessage[]): ChartAxisSpec[] | null {
+  if (!Array.isArray(raw)) return null;
+  const out: ChartAxisSpec[] = [];
+  for (const item of raw) {
+    const axis = validateAxisSpec(item, line, messages);
+    if (axis) out.push(axis);
+  }
+  return out.length ? out : null;
 }
 
 function validateChartView(view: ParsedView, messages: CalcdownMessage[]): CalcdownChartView | null {
@@ -299,9 +346,14 @@ function validateChartView(view: ParsedView, messages: CalcdownMessage[]): Calcd
   }
 
   const x = validateAxisSpec(specRaw.x, line, messages);
-  const y = validateAxisSpec(specRaw.y, line, messages);
+  const y = validateAxisSpecList(specRaw.y, line, messages) ?? validateAxisSpec(specRaw.y, line, messages);
   if (!x || !y) {
-    err(messages, line, "CD_VIEW_CHART_AXES", "chart.spec.x and chart.spec.y are required objects with a string 'key'");
+    err(
+      messages,
+      line,
+      "CD_VIEW_CHART_AXES",
+      "chart.spec.x is required (object with string 'key'); chart.spec.y is required (object with string 'key' or array of such objects)"
+    );
     return null;
   }
 

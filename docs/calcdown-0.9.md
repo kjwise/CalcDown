@@ -6,6 +6,21 @@ This document specifies **CalcDown 0.9**, focusing on **tooling and integration 
 
 The companion standard library is specified in `docs/stdlib-0.9.md`.
 
+## 0.9 additions (views)
+
+CalcDown 0.9 extends the standardized `chart` view to support **multiple plotted series**.
+
+For `library: "calcdown"` charts:
+
+- `chart.spec.x` is unchanged (one axis spec object).
+- `chart.spec.y` MAY be either:
+  - a single axis spec object (legacy), or
+  - an array of axis spec objects, where each entry is plotted as a separate series.
+
+CalcDown 0.9 also standardizes a small ergonomic default:
+
+- If a view spec object has a `key` and omits `label`, engines SHOULD default `label` to a humanized Title Case form of the key when the key is snake_case or kebab-case (e.g. `foo_bar` → `Foo Bar`).
+
 ## 0) Conventions
 
 The key words **MUST**, **MUST NOT**, **SHOULD**, and **MAY** are to be interpreted as described in RFC 2119.
