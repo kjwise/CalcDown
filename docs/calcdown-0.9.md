@@ -2,7 +2,7 @@
 
 Status: **Draft / experimental**. CalcDown is a text-first, Git-friendly format for “spreadsheet-like” models: typed inputs and data, a deterministic compute graph, and declarative views.
 
-This document specifies **CalcDown 0.9**, focusing on **tooling and integration contracts** and the **Editor Protocol**: how tools map runtime objects back to source text and apply safe, minimal patches. The execution model, blocks, views, and standard library are unchanged from 0.7 unless stated otherwise. CalcScript expressions additionally support comparison/equality operators, boolean operators (`&&`, `||`, `!`), and the conditional operator (`?:`).
+This document specifies **CalcDown 0.9**, focusing on **tooling and integration contracts** and the **Editor Protocol**: how tools map runtime objects back to source text and apply safe, minimal patches. The execution model, blocks, views, and standard library are unchanged from 0.7 unless stated otherwise. CalcScript expressions additionally support comparison/equality operators, boolean operators (`&&`, `||`, `!`), and the conditional operator (`?:`). Calc blocks MAY also include optional **table patch statements** (experimental; see §0.9 additions (calc patches)).
 
 The companion standard library is specified in `docs/stdlib-0.9.md`.
 
@@ -20,6 +20,29 @@ For `library: "calcdown"` charts:
 CalcDown 0.9 also standardizes a small ergonomic default:
 
 - If a view spec object has a `key` and omits `label`, engines SHOULD default `label` to a humanized Title Case form of the key when the key is snake_case or kebab-case (e.g. `foo_bar` → `Foo Bar`).
+
+## 0.9 additions (calc patches, experimental)
+
+CalcDown 0.7 defines `calc` blocks as pure `const <name> = <expr>;` declarations evaluated as a DAG (see CalcDown 0.7 §4).
+
+CalcDown 0.9 adds an optional convenience: engines MAY recognize **table patch statements** inside `calc` blocks to update inline `data` tables (typically used as “output templates”).
+
+**Syntax:**
+
+````md
+``` calc
+table["<primaryKey>"].<column> = <expr>;
+```
+````
+
+Rules:
+
+- Patch targets MUST be inline `data` tables (no `source`).
+- Patch selectors SHOULD use `primaryKey` string literals. Engines MAY also support 1-based row indices (`table[1].col = ...;`) but SHOULD warn because canonical formatting may reorder rows.
+- `<column>` MUST be a declared column and MUST NOT be the table’s `primaryKey`.
+- Patch `<expr>` MUST be a CalcScript expression.
+- Patches MUST be applied after evaluating `const` calc nodes. Patched table values MUST be visible to views and to subsequent patch statements in the same run.
+- Patches MUST NOT affect the evaluation of `const` calc nodes.
 
 ## 0) Conventions
 
