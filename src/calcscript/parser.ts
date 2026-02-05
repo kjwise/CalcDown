@@ -6,9 +6,34 @@ export function parseExpression(src: string): Expr {
   const expr = parseArrow(t);
   const tail = t.peek();
   if (tail.type !== "eof") {
-    throw new CalcScriptSyntaxError("Unexpected trailing tokens", tail.pos);
+    throw new CalcScriptSyntaxError(`Unexpected trailing token: ${tokenToString(tail)}`, tail.pos);
   }
   return expr;
+}
+
+function tokenToString(tok: Token): string {
+  switch (tok.type) {
+    case "eof":
+      return "end of expression";
+    case "punct":
+      return `'${tok.value}'`;
+    case "op":
+      return `'${tok.value}'`;
+    case "arrow":
+      return "'=>'";
+    case "identifier":
+      return `identifier ${tok.value}`;
+    case "number":
+      return `number ${tok.value}`;
+    case "boolean":
+      return `boolean ${tok.value ? "true" : "false"}`;
+    case "string":
+      return `string ${JSON.stringify(tok.value)}`;
+    default: {
+      const _exhaustive: never = tok;
+      return String(_exhaustive);
+    }
+  }
 }
 
 function expectTokenType<TType extends Token["type"]>(
@@ -303,7 +328,8 @@ function parsePrimary(t: Tokenizer): Expr {
     }
     return expr;
   }
-  throw new CalcScriptSyntaxError("Unexpected token", tok.pos);
+  if (tok.type === "eof") throw new CalcScriptSyntaxError("Unexpected end of expression", tok.pos);
+  throw new CalcScriptSyntaxError(`Unexpected token: ${tokenToString(tok)}`, tok.pos);
 }
 
 export function isStdMemberPath(expr: Expr): boolean {

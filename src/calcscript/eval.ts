@@ -5,6 +5,7 @@ import { isStdMemberPath } from "./parser.js";
 export interface EvalResult {
   values: Record<string, unknown>;
   messages: CalcdownMessage[];
+  env: Record<string, unknown>;
 }
 
 const bannedProperties = new Set(["__proto__", "prototype", "constructor"]);
@@ -376,7 +377,7 @@ function evalExpr(expr: Expr, env: Record<string, unknown>, ctx: EvalContext): u
   }
 }
 
-function codeForEvalError(message: string): string {
+export function calcErrorCodeForMessage(message: string): string {
   if (message === "Division by zero" || message.startsWith("Division by zero")) return "CD_CALC_DIV_ZERO";
   if (message === "Non-finite numeric result" || message.startsWith("Non-finite numeric result")) return "CD_CALC_NONFINITE";
   if (message.startsWith("Unknown identifier:")) return "CD_CALC_UNKNOWN_IDENTIFIER";
@@ -384,6 +385,18 @@ function codeForEvalError(message: string): string {
   if (message.startsWith("Upstream error in")) return "CD_CALC_UPSTREAM_ERROR";
   if (message.includes("Only std.* function calls are supported")) return "CD_CALC_UNSAFE_CALL";
   return "CD_CALC_EVAL";
+}
+
+export function evaluateExpression(
+  expr: Expr,
+  env: Record<string, unknown>,
+  std: unknown,
+  tablePkByArray: WeakMap<object, { primaryKey: string }>
+): unknown {
+  const ctx: EvalContext = { stdFunctions: collectStdFunctions(std), tablePkByArray };
+  const hasStd = Object.prototype.hasOwnProperty.call(env, "std");
+  const runtimeEnv = hasStd ? env : Object.assign(Object.create(null), env, { std });
+  return evalExpr(expr, runtimeEnv, ctx);
 }
 
 export function evaluateNodes(
@@ -455,7 +468,7 @@ export function evaluateNodes(
       const msg = err instanceof Error ? err.message : String(err);
       messages.push({
         severity: "error",
-        code: codeForEvalError(msg),
+        code: calcErrorCodeForMessage(msg),
         message: msg,
         line: node.line,
         nodeName: node.name,
@@ -464,5 +477,5 @@ export function evaluateNodes(
     }
   }
 
-  return { values, messages };
+  return { values, messages, env };
 }

@@ -144,3 +144,26 @@ test("CalcScript member access is own-properties only", () => {
   assert.equal(badErr.code, "CD_CALC_UNKNOWN_PROPERTY");
   assert.match(badErr.message, /Unknown property: map/);
 });
+
+test("CalcScript parse errors include column for faster fixes", () => {
+  const src = [
+    "---",
+    "calcdown: 0.9",
+    "---",
+    "",
+    "```inputs",
+    "x : number = 1",
+    "```",
+    "",
+    "```calc",
+    "const y = x + ;",
+    "```",
+    "",
+  ].join("\n");
+
+  const parsed = parseProgram(src);
+  const err = parsed.messages.find((m) => m.severity === "error" && m.code === "CD_CALC_PARSE_EXPR" && m.nodeName === "y");
+  assert.ok(err);
+  assert.equal(err.line, 10);
+  assert.equal(err.column, 14);
+ });

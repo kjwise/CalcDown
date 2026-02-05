@@ -11,12 +11,24 @@ export interface InputChangeEvent {
 export interface RenderInputsOptions {
   container: HTMLElement;
   inputs: InputDefinition[];
+  overrides?: Record<string, OverrideValue>;
   onChange?: (ev: InputChangeEvent) => void;
+}
+
+function coerceBooleanInitial(value: unknown): boolean {
+  if (typeof value === "boolean") return value;
+  if (typeof value === "string") {
+    if (value === "true") return true;
+    if (value === "false") return false;
+  }
+  return Boolean(value);
 }
 
 export function renderInputsForm(opts: RenderInputsOptions): void {
   const root = opts.container;
   while (root.firstChild) root.removeChild(root.firstChild);
+
+  const overrides = opts.overrides ?? null;
 
   for (const def of opts.inputs) {
     const field = document.createElement("div");
@@ -31,15 +43,19 @@ export function renderInputsForm(opts: RenderInputsOptions): void {
 
     const fire = (value: OverrideValue) => opts.onChange?.({ name: def.name, value });
 
+    const overrideValue = overrides && Object.prototype.hasOwnProperty.call(overrides, def.name) ? overrides[def.name] : undefined;
+    const initialValue = overrideValue !== undefined ? overrideValue : def.defaultValue;
+
     const typeName = def.type.name;
     if (typeName === "boolean") {
       input.type = "checkbox";
       input.dataset.kind = "boolean";
-      input.checked = Boolean(def.defaultValue);
+      input.checked = coerceBooleanInitial(initialValue);
       input.addEventListener("change", () => fire(input.checked));
     } else if (typeName === "date") {
       input.type = "date";
-      input.value = def.defaultValue instanceof Date ? formatIsoDate(def.defaultValue) : String(def.defaultValue);
+      input.value =
+        initialValue instanceof Date ? formatIsoDate(initialValue) : typeof initialValue === "string" ? initialValue : String(initialValue);
       input.addEventListener("input", () => {
         if (!input.value) return;
         fire(input.value);
@@ -55,7 +71,7 @@ export function renderInputsForm(opts: RenderInputsOptions): void {
       input.type = "number";
       input.dataset.kind = "number";
       input.step = typeName === "integer" ? "1" : typeName === "percent" ? "0.1" : "0.01";
-      input.value = typeof def.defaultValue === "number" ? String(def.defaultValue) : String(def.defaultValue);
+      input.value = typeof initialValue === "number" ? String(initialValue) : String(initialValue);
       input.addEventListener("input", () => {
         const n = input.valueAsNumber;
         if (!Number.isFinite(n)) return;
@@ -64,7 +80,7 @@ export function renderInputsForm(opts: RenderInputsOptions): void {
       });
     } else {
       input.type = "text";
-      input.value = typeof def.defaultValue === "string" ? def.defaultValue : String(def.defaultValue);
+      input.value = typeof initialValue === "string" ? initialValue : String(initialValue);
       input.addEventListener("input", () => fire(input.value));
     }
 
@@ -96,4 +112,3 @@ export function readInputOverrides(root: HTMLElement): Record<string, OverrideVa
   }
   return out;
 }
-

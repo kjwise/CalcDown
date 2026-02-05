@@ -56,14 +56,24 @@ Total interest: `{{ total_interest }}`
       "key": "date",
       "label": "Date"
     },
-    "y": {
-      "format": {
-        "digits": 2,
-        "kind": "number"
+    "y": [
+      {
+        "format": {
+          "digits": 2,
+          "kind": "number"
+        },
+        "key": "opening_balance",
+        "label": "Opening balance"
       },
-      "key": "closing_balance",
-      "label": "Closing balance"
-    }
+      {
+        "format": {
+          "digits": 2,
+          "kind": "number"
+        },
+        "key": "closing_balance",
+        "label": "Closing balance"
+      }
+    ]
   },
   "type": "chart"
 }

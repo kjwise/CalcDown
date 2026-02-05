@@ -2,6 +2,7 @@ import { CalcdownMessage } from "../types.js";
 import { Expr } from "./ast.js";
 import { extractTopLevelConstDeclarations } from "./decl.js";
 import { parseExpression } from "./parser.js";
+import { CalcScriptSyntaxError } from "./tokenizer.js";
 
 export interface CalcNode {
   name: string;
@@ -12,6 +13,22 @@ export interface CalcNode {
 }
 
 const bannedProperties = new Set(["__proto__", "prototype", "constructor"]);
+
+function lineColFromOffset(text: string, offset: number): { line: number; column: number } {
+  const clamped = Math.max(0, Math.min(offset, text.length));
+  let line = 1;
+  let column = 1;
+  for (let i = 0; i < clamped; i++) {
+    const ch = text[i];
+    if (ch === "\n") {
+      line++;
+      column = 1;
+    } else {
+      column++;
+    }
+  }
+  return { line, column };
+}
 
 function collectDependencies(expr: Expr, out: Set<string>): void {
   switch (expr.kind) {
@@ -187,11 +204,22 @@ export function compileCalcScript(source: string, baseLine: number): {
         line: decl.line,
       });
     } catch (err) {
+      let line = decl.line;
+      let column: number | undefined = undefined;
+
+      if (err instanceof CalcScriptSyntaxError) {
+        const rawOffset = decl.exprTrimStartOffset + err.pos;
+        const { line: relLine, column: relCol } = lineColFromOffset(decl.exprTextRaw, rawOffset);
+        line = decl.exprStartLine + (relLine - 1);
+        column = relLine === 1 ? decl.exprStartColumn + (relCol - 1) : relCol;
+      }
+
       messages.push({
         severity: "error",
         code: "CD_CALC_PARSE_EXPR",
         message: err instanceof Error ? err.message : String(err),
-        line: decl.line,
+        line,
+        ...(column !== undefined ? { column } : {}),
         nodeName: decl.name,
       });
       nodes.push({

@@ -73,18 +73,33 @@ function renderCharts(res: ReturnType<typeof runCalcdown>, chartMode: ChartMode)
     const rows = raw.filter((r) => r && typeof r === "object" && !Array.isArray(r)) as Record<string, unknown>[];
 
     const xField = view.spec.x.key;
-    const yField = view.spec.y.key;
+    const ySpecs = Array.isArray(view.spec.y) ? view.spec.y : [view.spec.y];
+    const series = ySpecs.map((s) => ({
+      key: s.key,
+      label: s.label,
+      ...(s.format ? { format: s.format } : {}),
+    }));
     const title = view.spec.title ?? view.id;
     const specKind = view.spec.kind;
     const mark = chartMode === "spec" ? specKind : chartMode;
-    const subtitle =
-      mark === "line" ? `${sourceName}.${yField} over ${xField}` : `${sourceName}.${yField} by ${xField}`;
+    const ySummary = series.map((s) => s.key).join(", ");
+    const subtitle = mark === "line" ? `${sourceName}.${ySummary} over ${xField}` : `${sourceName}.${ySummary} by ${xField}`;
 
     const classes = { container: "chart", title: "chart-title", subtitle: "chart-subtitle" };
+    const chartOpts = {
+      title,
+      subtitle,
+      rows,
+      xField,
+      xLabel: view.spec.x.label,
+      series,
+      classes,
+      ...(view.spec.x.format ? { xFormat: view.spec.x.format } : {}),
+    };
     const chart =
       mark === "line"
-        ? buildLineChartCard({ title, subtitle, rows, xField, yField, classes })
-        : buildBarChartCard({ title, subtitle, rows, xField, yField, classes });
+        ? buildLineChartCard(chartOpts)
+        : buildBarChartCard(chartOpts);
     charts.appendChild(chart);
   }
 }

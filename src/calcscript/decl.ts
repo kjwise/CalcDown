@@ -3,6 +3,10 @@ import { CalcdownMessage } from "../types.js";
 export interface ConstDeclaration {
   name: string;
   exprText: string;
+  exprTextRaw: string;
+  exprTrimStartOffset: number;
+  exprStartLine: number;
+  exprStartColumn: number;
   line: number;
 }
 
@@ -300,6 +304,8 @@ export function extractTopLevelConstDeclarations(source: string, baseLine: numbe
       advance();
 
       const exprStart = i;
+      const exprStartLine = line;
+      const exprStartColumn = col;
       const semicolonPos = scanToTopLevelSemicolon();
       if (semicolonPos === null) {
         messages.push({
@@ -311,8 +317,10 @@ export function extractTopLevelConstDeclarations(source: string, baseLine: numbe
         break;
       }
 
-      const exprText = source.slice(exprStart, semicolonPos).trim();
-      decls.push({ name, exprText, line: declLine });
+      const exprTextRaw = source.slice(exprStart, semicolonPos);
+      const exprText = exprTextRaw.trim();
+      const exprTrimStartOffset = (exprTextRaw.match(/^\s*/) ?? [""])[0].length;
+      decls.push({ name, exprText, exprTextRaw, exprTrimStartOffset, exprStartLine, exprStartColumn, line: declLine });
       i = semicolonPos + 1;
       col++;
       continue;

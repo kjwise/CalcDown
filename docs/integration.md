@@ -32,6 +32,13 @@ renderCalcdownViews({
 });
 ```
 
+## Value formatting (tables, cards, charts)
+
+Many CalcDown views accept a `format` for values.
+
+- `format: "percent"` formats numbers as **percent points** (e.g. `14.77` → `14.77%`).
+- For **ratio** percentages (`0..1`), use `format: "percent01"` (e.g. `0.1477` → `14.77%`) or `format: { kind: "percent", scale: 100 }`.
+
 ## Styling (optional)
 
 The view renderer emits simple, stable class names (`view`, `view-title`, `cards`, `card`, etc.). For quick integrations, you can install a small default stylesheet:
@@ -58,6 +65,18 @@ handle.update(nextMarkdown);
 // Cleanup when the block is removed/unmounted:
 handle.destroy();
 ```
+
+## Rendering full documents (narrative + blocks)
+
+If you want a standalone renderer that also renders the document’s Markdown narrative and inserts CalcDown blocks in-place, use `mountCalcdownDocument`:
+
+```ts
+import { mountCalcdownDocument } from "../dist/web/index.js";
+
+mountCalcdownDocument(el, markdown, { showMessages: false });
+```
+
+Optional: pass `{ showSourceBlocks: true }` to also render `data` and `calc` blocks as code.
 
 ## Table editing (optional)
 
