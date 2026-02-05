@@ -50,6 +50,15 @@ The key words **MUST**, **MUST NOT**, **SHOULD**, and **MAY** are to be interpre
 
 Line numbers in this spec are **1-based** (consistent with CalcDown messages).
 
+### 0.1 Fenced code blocks (CalcDown documents)
+
+In CalcDown documents (`.calc.md`), fenced code blocks are reserved for CalcDown blocks.
+
+- The fence info string’s first token MUST be one of: `inputs`, `data`, `calc`, `view`.
+- Fenced code blocks with a missing or unknown language tag MUST be treated as an error by validators.
+
+Rationale: `.calc.md` is a modeling document. Allowing arbitrary fenced code blocks makes tooling ambiguous (parsing, formatting, source mapping). Use prose and inline code (`` `...` ``) for literal snippets.
+
 ## 1) Design goal: “Read → Edit → Write”
 
 CalcDown 0.7 validates and evaluates a project (“Read → Eval → Print”).

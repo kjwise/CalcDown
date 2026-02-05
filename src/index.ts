@@ -37,8 +37,21 @@ export function parseProgram(markdown: string): { program: CalcdownProgram; mess
   const seenInputs = new Set<string>();
   const seenTables = new Set<string>();
   const seenNodes = new Set<string>();
+  const allowedBlockLangs = new Set(["inputs", "data", "calc", "view"]);
 
   for (const block of parsed.codeBlocks) {
+    if (!allowedBlockLangs.has(block.lang)) {
+      messages.push({
+        severity: "error",
+        code: block.lang ? "CD_BLOCK_UNKNOWN_LANG" : "CD_BLOCK_MISSING_LANG",
+        message: block.lang
+          ? `Unknown fenced code block language: ${block.lang}. In .calc.md, fenced code blocks are reserved for CalcDown blocks (inputs|data|calc|view).`
+          : "Fenced code block is missing a language tag. In .calc.md, fenced code blocks are reserved for CalcDown blocks (inputs|data|calc|view).",
+        line: block.fenceLine,
+        ...(block.lang ? { blockLang: block.lang } : {}),
+      });
+    }
+
     if (block.lang === "inputs") {
       const res = parseInputsBlock(block);
       messages.push(...res.messages);

@@ -21,6 +21,16 @@ export interface RenderViewsOptions {
   onEditTableCell?: (ev: TableEditEvent) => void;
 }
 
+export interface RenderInlineViewsOptions {
+  container: HTMLElement;
+  views: CalcdownView[]; // all known views (for layout refs)
+  render: string[]; // view ids to render in order
+  values: Record<string, unknown>;
+  chartMode?: ChartMode;
+  tableSchemas?: Record<string, DataTable>;
+  onEditTableCell?: (ev: TableEditEvent) => void;
+}
+
 function clear(el: HTMLElement): void {
   while (el.firstChild) el.removeChild(el.firstChild);
 }
@@ -71,6 +81,19 @@ function defaultColumnsForSource(sourceName: string, rows: Record<string, unknow
   return Object.keys(rows[0] ?? {})
     .sort((a, b) => a.localeCompare(b))
     .map((k) => ({ key: k, label: defaultLabelForKey(k) }));
+}
+
+function inferredFormatForType(t: DataTable["columns"][string] | undefined): ValueFormat | undefined {
+  if (!t) return undefined;
+  if (t.name === "integer") return "integer";
+  if (t.name === "number" || t.name === "decimal") return "number";
+  if (t.name === "percent") return "percent";
+  if (t.name === "date") return "date";
+  if (t.name === "currency") {
+    const code = t.args[0];
+    return code ? ({ kind: "currency", currency: code } satisfies ValueFormat) : "number";
+  }
+  return undefined;
 }
 
 function buildTableView(
@@ -217,13 +240,14 @@ function buildLayoutItem(
     if (!Array.isArray(raw)) return null;
     const rowObjs = raw.filter((r) => r && typeof r === "object" && !Array.isArray(r)) as Record<string, unknown>[];
 
-    const cols = (target.spec.columns && target.spec.columns.length ? target.spec.columns : defaultColumnsForSource(sourceName, rowObjs, ctx.schemas)).map((c) => ({
-      key: c.key,
-      label: c.label,
-      ...(c.format ? { format: c.format as ValueFormat } : {}),
-    }));
-
     const schema = ctx.schemas ? ctx.schemas[sourceName] : undefined;
+    const schemaCols = schema?.columns ?? null;
+
+    const cols = (target.spec.columns && target.spec.columns.length ? target.spec.columns : defaultColumnsForSource(sourceName, rowObjs, ctx.schemas)).map((c) => {
+      const fmt = c.format ? (c.format as ValueFormat) : schemaCols ? inferredFormatForType(schemaCols[c.key]) : undefined;
+      return Object.assign(Object.create(null), { key: c.key, label: c.label }, fmt ? { format: fmt } : {});
+    });
+
     const editable = Boolean(target.spec.editable && schema && !schema.source);
 
     const limit = target.spec.limit;
@@ -243,11 +267,14 @@ function buildLayoutItem(
     const rows = raw.filter((r) => r && typeof r === "object" && !Array.isArray(r)) as Record<string, unknown>[];
     const xField = target.spec.x.key;
     const ySpecs = Array.isArray(target.spec.y) ? target.spec.y : [target.spec.y];
-    const series: ChartSeriesSpec[] = ySpecs.map((s) => ({
-      key: s.key,
-      label: s.label,
-      ...(s.format ? { format: s.format as ValueFormat } : {}),
-    }));
+
+    const schema = ctx.schemas ? ctx.schemas[sourceName] : undefined;
+    const schemaCols = schema?.columns ?? null;
+
+    const series: ChartSeriesSpec[] = ySpecs.map((s) => {
+      const fmt = s.format ? (s.format as ValueFormat) : schemaCols ? inferredFormatForType(schemaCols[s.key]) : undefined;
+      return Object.assign(Object.create(null), { key: s.key, label: s.label }, fmt ? { format: fmt } : {});
+    });
     const title = target.spec.title ?? target.id;
     const mark = ctx.chartMode === "spec" ? target.spec.kind : ctx.chartMode;
     const ySummary = series.map((s) => s.key).join(", ");
@@ -255,6 +282,12 @@ function buildLayoutItem(
       mark === "line" ? `${sourceName}.${ySummary} over ${xField}` : `${sourceName}.${ySummary} by ${xField}`;
 
     const classes: Partial<ChartCardClasses> = Object.assign(Object.create(null), { container: "view", title: "view-title", subtitle: "muted" });
+    const xFormat = target.spec.x.format
+      ? (target.spec.x.format as ValueFormat)
+      : schemaCols
+        ? inferredFormatForType(schemaCols[xField])
+        : undefined;
+
     const chartOpts = {
       title,
       subtitle,
@@ -263,7 +296,7 @@ function buildLayoutItem(
       xLabel: target.spec.x.label,
       series,
       classes,
-      ...(target.spec.x.format ? { xFormat: target.spec.x.format as ValueFormat } : {}),
+      ...(xFormat ? { xFormat } : {}),
     };
     if (mark === "line") return buildLineChartCard(chartOpts);
     if (mark === "bar") return buildBarChartCard(chartOpts);
@@ -300,6 +333,28 @@ export function renderCalcdownViews(opts: RenderViewsOptions): void {
   for (const v of opts.views) {
     if (v.type === "layout") continue;
     const el = buildLayoutItem({ kind: "ref", ref: v.id }, viewById, ctx);
+    if (el) opts.container.appendChild(el);
+  }
+}
+
+export function renderCalcdownViewsInline(opts: RenderInlineViewsOptions): void {
+  const chartMode: ChartMode = opts.chartMode ?? "spec";
+  clear(opts.container);
+  if (opts.views.length === 0) return;
+
+  const viewById = new Map(opts.views.map((v) => [v.id, v]));
+
+  const ctx: {
+    values: Record<string, unknown>;
+    chartMode: ChartMode;
+    schemas?: Record<string, DataTable>;
+    onEditTableCell?: (ev: TableEditEvent) => void;
+  } = { values: opts.values, chartMode };
+  if (opts.tableSchemas) ctx.schemas = opts.tableSchemas;
+  if (opts.onEditTableCell) ctx.onEditTableCell = opts.onEditTableCell;
+
+  for (const id of opts.render) {
+    const el = buildLayoutItem({ kind: "ref", ref: id }, viewById, ctx);
     if (el) opts.container.appendChild(el);
   }
 }

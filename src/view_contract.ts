@@ -7,12 +7,14 @@ export type ValueFormat =
   | "number"
   | "integer"
   | "percent"
+  | "percent01"
   | "currency"
   | "date"
   | {
       kind: "number" | "integer" | "percent" | "currency" | "date";
       digits?: number;
       currency?: string;
+      scale?: number;
     };
 
 export interface CardsViewSpecItem {
@@ -173,7 +175,8 @@ function validateFormat(raw: unknown, line: number, messages: CalcdownMessage[])
   if (raw === undefined) return null;
 
   if (typeof raw === "string") {
-    if (raw === "number" || raw === "integer" || raw === "percent" || raw === "currency" || raw === "date") return raw;
+    if (raw === "number" || raw === "integer" || raw === "percent" || raw === "percent01" || raw === "currency" || raw === "date")
+      return raw;
     return null;
   }
 
@@ -184,9 +187,26 @@ function validateFormat(raw: unknown, line: number, messages: CalcdownMessage[])
 
   const digits = validateDigits(raw.digits);
   const currency = asString(raw.currency);
+  const scaleRaw = raw.scale;
+  const scale =
+    scaleRaw === undefined
+      ? null
+      : typeof scaleRaw === "number" && Number.isFinite(scaleRaw) && scaleRaw > 0
+        ? scaleRaw
+        : null;
 
   if (kind === "currency" && !currency) {
     err(messages, line, "CD_VIEW_FORMAT_CURRENCY_REQUIRED", "format.currency is required when format.kind is 'currency'");
+    return null;
+  }
+
+  if (kind !== "percent" && scaleRaw !== undefined) {
+    err(messages, line, "CD_VIEW_FORMAT_SCALE_UNSUPPORTED", "format.scale is only supported when format.kind is 'percent'");
+    return null;
+  }
+
+  if (kind === "percent" && scaleRaw !== undefined && scale === null) {
+    err(messages, line, "CD_VIEW_FORMAT_SCALE_INVALID", "format.scale must be a finite number greater than 0");
     return null;
   }
 
@@ -194,6 +214,7 @@ function validateFormat(raw: unknown, line: number, messages: CalcdownMessage[])
     kind,
     ...(digits !== null ? { digits } : {}),
     ...(currency ? { currency } : {}),
+    ...(scale !== null ? { scale } : {}),
   }) as ValueFormat;
 }
 

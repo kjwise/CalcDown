@@ -27,7 +27,7 @@
               "label": { "type": "string" },
               "format": {
                 "oneOf": [
-                  { "enum": ["number", "integer", "percent", "currency", "date"] },
+                  { "enum": ["number", "integer", "percent", "percent01", "currency", "date"] },
                   {
                     "type": "object",
                     "additionalProperties": false,
@@ -35,6 +35,7 @@
                     "properties": {
                       "kind": { "enum": ["number", "integer", "percent", "currency", "date"] },
                       "digits": { "type": "integer", "minimum": 0, "maximum": 12 },
+                      "scale": { "type": "number", "exclusiveMinimum": 0 },
                       "currency": { "type": "string", "minLength": 1 }
                     }
                   }

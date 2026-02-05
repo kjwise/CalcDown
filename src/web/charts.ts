@@ -63,6 +63,25 @@ function formatCategoryLabel(v: unknown, fmt: ValueFormat | undefined): string {
   return formatFormattedValue(v, fmt);
 }
 
+function formatsEqual(a: ValueFormat, b: ValueFormat): boolean {
+  if (a === b) return true;
+  if (typeof a === "string" || typeof b === "string") return false;
+  return a.kind === b.kind && a.digits === b.digits && a.currency === b.currency && a.scale === b.scale;
+}
+
+function axisFormatFromSeries(series: ChartSeriesSpec[]): ValueFormat | undefined {
+  let fmt: ValueFormat | undefined;
+  for (const s of series) {
+    if (!s.format) continue;
+    if (!fmt) {
+      fmt = s.format;
+      continue;
+    }
+    if (!formatsEqual(fmt, s.format)) return undefined;
+  }
+  return fmt;
+}
+
 function uniqueSortedNumbers(values: number[]): number[] {
   if (values.length === 0) return [];
   const sorted = [...values].sort((a, b) => a - b);
@@ -292,12 +311,13 @@ export function buildLineChartCard(opts: ChartCardOptions): HTMLElement {
   xLabel.textContent = xAxisLabel;
   svg.appendChild(xLabel);
 
+  const yAxisFormat = axisFormatFromSeries(series);
   const yLabel = document.createElementNS(svgNS, "text");
   yLabel.setAttribute("x", String(margin.left));
   yLabel.setAttribute("y", String(margin.top + 10));
   yLabel.setAttribute("fill", "#6a718a");
   yLabel.setAttribute("font-size", "11");
-  yLabel.textContent = `${ymax.toFixed(2)}`;
+  yLabel.textContent = yAxisFormat ? formatFormattedValue(ymax, yAxisFormat) : ymax.toFixed(2);
   svg.appendChild(yLabel);
 
   const yLabelMin = document.createElementNS(svgNS, "text");
@@ -305,7 +325,7 @@ export function buildLineChartCard(opts: ChartCardOptions): HTMLElement {
   yLabelMin.setAttribute("y", String(margin.top + plotH));
   yLabelMin.setAttribute("fill", "#6a718a");
   yLabelMin.setAttribute("font-size", "11");
-  yLabelMin.textContent = `${ymin.toFixed(2)}`;
+  yLabelMin.textContent = yAxisFormat ? formatFormattedValue(ymin, yAxisFormat) : ymin.toFixed(2);
   svg.appendChild(yLabelMin);
 
   view.appendChild(svg);
@@ -410,12 +430,13 @@ export function buildBarChartCard(opts: ChartCardOptions): HTMLElement {
     }
   }
 
+  const yAxisFormat = axisFormatFromSeries(series);
   const yLabel = document.createElementNS(svgNS, "text");
   yLabel.setAttribute("x", String(margin.left));
   yLabel.setAttribute("y", String(margin.top + 10));
   yLabel.setAttribute("fill", "#6a718a");
   yLabel.setAttribute("font-size", "11");
-  yLabel.textContent = `${ymax.toFixed(2)}`;
+  yLabel.textContent = yAxisFormat ? formatFormattedValue(ymax, yAxisFormat) : ymax.toFixed(2);
   svg.appendChild(yLabel);
 
   const yLabelMin = document.createElementNS(svgNS, "text");
@@ -423,7 +444,7 @@ export function buildBarChartCard(opts: ChartCardOptions): HTMLElement {
   yLabelMin.setAttribute("y", String(margin.top + plotH));
   yLabelMin.setAttribute("fill", "#6a718a");
   yLabelMin.setAttribute("font-size", "11");
-  yLabelMin.textContent = `${ymin.toFixed(2)}`;
+  yLabelMin.textContent = yAxisFormat ? formatFormattedValue(ymin, yAxisFormat) : ymin.toFixed(2);
   svg.appendChild(yLabelMin);
 
   if (series.length > 1) {
